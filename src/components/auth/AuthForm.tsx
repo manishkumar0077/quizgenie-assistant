@@ -5,20 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Temporary auth logic - will be replaced with Supabase
-    toast({
-      title: isLogin ? "Welcome back!" : "Account created!",
-      description: "You've been successfully authenticated.",
-    });
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        else {
+          toast({
+            title: "Account created!",
+            description: "Please check your email to verify your account.",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,6 +70,7 @@ const AuthForm = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full"
+              disabled={loading}
             />
           </div>
           <div className="space-y-2">
@@ -51,10 +80,11 @@ const AuthForm = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full"
+              disabled={loading}
             />
           </div>
-          <Button type="submit" className="w-full">
-            {isLogin ? "Sign In" : "Sign Up"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
           </Button>
         </form>
 
@@ -62,6 +92,7 @@ const AuthForm = () => {
           <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            disabled={loading}
           >
             {isLogin
               ? "Don't have an account? Sign up"
