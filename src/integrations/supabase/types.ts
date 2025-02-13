@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       chat_history: {
         Row: {
+          chat_id: string | null
           created_at: string
           id: string
           message: string
@@ -18,6 +19,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_id?: string | null
           created_at?: string
           id?: string
           message: string
@@ -25,39 +27,89 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_id?: string | null
           created_at?: string
           id?: string
           message?: string
           role?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_history_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
+          analyzed_content: Json | null
           content: string | null
           created_at: string
+          document_type: string | null
           file_type: string
           filename: string
           id: string
+          quiz_metadata: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          analyzed_content?: Json | null
           content?: string | null
           created_at?: string
+          document_type?: string | null
           file_type: string
           filename: string
           id?: string
+          quiz_metadata?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          analyzed_content?: Json | null
           content?: string | null
           created_at?: string
+          document_type?: string | null
           file_type?: string
           filename?: string
           id?: string
+          quiz_metadata?: Json | null
           updated_at?: string
           user_id?: string
         }

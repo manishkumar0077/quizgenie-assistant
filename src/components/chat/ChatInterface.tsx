@@ -6,17 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Upload, LogOut } from "lucide-react";
+import { MessageSquare, Send, Upload, LogOut, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+interface Chat {
+  id: string;
+  title: string;
+  created_at: string;
+  document_id: string | null;
+}
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Array<{ type: string; content: string }>>([]);
   const [input, setInput] = useState("");
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get the current user's ID
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -25,6 +33,67 @@ const ChatInterface = () => {
     };
     getCurrentUser();
   }, []);
+
+  // Load user's chats
+  useEffect(() => {
+    const loadChats = async () => {
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from('chats')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Error loading chats",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data) {
+        setChats(data);
+        if (data.length > 0 && !currentChatId) {
+          setCurrentChatId(data[0].id);
+        }
+      }
+    };
+
+    if (userId) {
+      loadChats();
+    }
+  }, [userId, currentChatId]);
+
+  const createNewChat = async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('chats')
+        .insert({
+          title: `New Chat ${new Date().toLocaleString()}`,
+          user_id: userId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setChats([data, ...chats]);
+        setCurrentChatId(data.id);
+        setMessages([]);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error creating chat",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
@@ -73,14 +142,14 @@ const ChatInterface = () => {
   });
 
   const handleSend = async () => {
-    if (!input.trim() || !userId) return;
+    if (!input.trim() || !userId || !currentChatId) return;
     
     try {
-      // Store the user message
       await supabase.from('chat_history').insert({
         message: input,
         role: 'user',
-        user_id: userId
+        user_id: userId,
+        chat_id: currentChatId
       });
 
       setMessages([...messages, { type: "user", content: input }]);
@@ -92,7 +161,8 @@ const ChatInterface = () => {
       await supabase.from('chat_history').insert({
         message: aiResponse,
         role: 'assistant',
-        user_id: userId
+        user_id: userId,
+        chat_id: currentChatId
       });
 
       setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
@@ -109,15 +179,15 @@ const ChatInterface = () => {
     await supabase.auth.signOut();
   };
 
-  // Load chat history on component mount
+  // Load chat history for current chat
   useEffect(() => {
     const loadChatHistory = async () => {
-      if (!userId) return;
+      if (!userId || !currentChatId) return;
 
       const { data, error } = await supabase
         .from('chat_history')
         .select('*')
-        .eq('user_id', userId)
+        .eq('chat_id', currentChatId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -139,31 +209,42 @@ const ChatInterface = () => {
       }
     };
 
-    if (userId) {
+    if (userId && currentChatId) {
       loadChatHistory();
     }
-  }, [userId]);
+  }, [userId, currentChatId]);
 
   return (
     <div className="h-screen flex">
       {/* Chat History Sidebar */}
       <div className="w-64 border-r bg-secondary/50 p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">Chat History</h2>
+          <h2 className="font-semibold">Chats</h2>
           <Button variant="ghost" size="icon" onClick={handleSignOut}>
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
+        <Button 
+          variant="outline" 
+          className="w-full mb-4"
+          onClick={createNewChat}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Chat
+        </Button>
         <ScrollArea className="h-[calc(100vh-8rem)]">
           <div className="space-y-2">
-            {messages.map((msg, i) => (
+            {chats.map((chat) => (
               <div
-                key={i}
-                className="p-2 rounded hover:bg-secondary cursor-pointer transition-colors"
+                key={chat.id}
+                className={`p-2 rounded hover:bg-secondary cursor-pointer transition-colors ${
+                  currentChatId === chat.id ? 'bg-secondary' : ''
+                }`}
+                onClick={() => setCurrentChatId(chat.id)}
               >
                 <MessageSquare className="inline-block mr-2 w-4 h-4" />
                 <span className="text-sm truncate">
-                  {msg.content.substring(0, 20)}...
+                  {chat.title}
                 </span>
               </div>
             ))}
