@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
@@ -8,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Send, Upload, LogOut, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { analyzeDocument, generateQuiz } from "@/utils/gemini";
 
 interface Chat {
   id: string;
@@ -102,41 +102,85 @@ const ChatInterface = () => {
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
       'image/*': ['.png', '.jpg', '.jpeg']
     },
+    maxFiles: 1,
+    multiple: false,
     onDrop: async (acceptedFiles) => {
-      if (!userId) return;
+      if (!userId || acceptedFiles.length === 0) return;
 
-      for (const file of acceptedFiles) {
-        try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage
-            .from('study_materials')
-            .upload(fileName, file);
+      const file = acceptedFiles[0];
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('study_materials')
+          .upload(`${userId}/${fileName}`, file);
 
-          if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-          const { error: dbError } = await supabase
-            .from('documents')
-            .insert({
-              filename: file.name,
-              file_type: file.type,
-              content: 'Processing...', // This will be updated after OCR/processing
-              user_id: userId
-            });
+        const { data: documentData, error: dbError } = await supabase
+          .from('documents')
+          .insert({
+            filename: file.name,
+            file_type: file.type,
+            content: 'Processing...',
+            user_id: userId
+          })
+          .select()
+          .single();
 
-          if (dbError) throw dbError;
+        if (dbError) throw dbError;
 
-          toast({
-            title: "File uploaded",
-            description: `${file.name} has been uploaded successfully.`,
-          });
-        } catch (error: any) {
-          toast({
-            title: "Upload failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "File uploaded",
+          description: "Processing your document...",
+        });
+
+        const fileContent = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result);
+          reader.readAsText(file);
+        });
+
+        const analysis = await analyzeDocument(fileContent as string);
+        const quiz = await generateQuiz(fileContent as string);
+
+        const { error: updateError } = await supabase
+          .from('documents')
+          .update({
+            content: fileContent as string,
+            analyzed_content: analysis,
+            quiz_metadata: quiz
+          })
+          .eq('id', documentData.id);
+
+        if (updateError) throw updateError;
+
+        const { data: chatData, error: chatError } = await supabase
+          .from('chats')
+          .insert({
+            title: `Chat about ${file.name}`,
+            user_id: userId,
+            document_id: documentData.id
+          })
+          .select()
+          .single();
+
+        if (chatError) throw chatError;
+
+        setChats(prev => [chatData, ...prev]);
+        setCurrentChatId(chatData.id);
+        setMessages([]);
+
+        toast({
+          title: "Document processed",
+          description: "Your document has been analyzed and is ready for chat!",
+        });
+      } catch (error: any) {
+        toast({
+          title: "Processing failed",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     }
   });
@@ -155,17 +199,34 @@ const ChatInterface = () => {
       setMessages([...messages, { type: "user", content: input }]);
       setInput("");
 
-      // Simulated AI response - this will be replaced with actual AI integration
-      const aiResponse = "I understand your question. Based on your notes, here's what I found...";
-      
-      await supabase.from('chat_history').insert({
-        message: aiResponse,
-        role: 'assistant',
-        user_id: userId,
-        chat_id: currentChatId
-      });
+      const { data: chatData } = await supabase
+        .from('chats')
+        .select('document_id')
+        .eq('id', currentChatId)
+        .single();
 
-      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
+      if (chatData?.document_id) {
+        const { data: documentData } = await supabase
+          .from('documents')
+          .select('content, analyzed_content')
+          .eq('id', chatData.document_id)
+          .single();
+
+        if (documentData) {
+          const response = await analyzeDocument(
+            `Context: ${documentData.analyzed_content}\n\nQuestion: ${input}\n\nProvide a helpful response based on the context.`
+          );
+
+          await supabase.from('chat_history').insert({
+            message: response,
+            role: 'assistant',
+            user_id: userId,
+            chat_id: currentChatId
+          });
+
+          setMessages(prev => [...prev, { type: "assistant", content: response }]);
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
