@@ -1,7 +1,7 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(import.meta.env.GEMINI_API_KEY || '');
 
 export async function analyzeDocument(content: string) {
   try {
