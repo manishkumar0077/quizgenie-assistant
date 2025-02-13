@@ -13,6 +13,18 @@ const ChatInterface = () => {
   const [messages, setMessages] = useState<Array<{ type: string; content: string }>>([]);
   const [input, setInput] = useState("");
   const { toast } = useToast();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get the current user's ID
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
@@ -22,6 +34,8 @@ const ChatInterface = () => {
       'image/*': ['.png', '.jpg', '.jpeg']
     },
     onDrop: async (acceptedFiles) => {
+      if (!userId) return;
+
       for (const file of acceptedFiles) {
         try {
           const fileExt = file.name.split('.').pop();
@@ -37,7 +51,8 @@ const ChatInterface = () => {
             .insert({
               filename: file.name,
               file_type: file.type,
-              content: 'Processing...' // This will be updated after OCR/processing
+              content: 'Processing...', // This will be updated after OCR/processing
+              user_id: userId
             });
 
           if (dbError) throw dbError;
@@ -58,13 +73,14 @@ const ChatInterface = () => {
   });
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !userId) return;
     
     try {
       // Store the user message
       await supabase.from('chat_history').insert({
         message: input,
-        role: 'user'
+        role: 'user',
+        user_id: userId
       });
 
       setMessages([...messages, { type: "user", content: input }]);
@@ -75,7 +91,8 @@ const ChatInterface = () => {
       
       await supabase.from('chat_history').insert({
         message: aiResponse,
-        role: 'assistant'
+        role: 'assistant',
+        user_id: userId
       });
 
       setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
@@ -95,9 +112,12 @@ const ChatInterface = () => {
   // Load chat history on component mount
   useEffect(() => {
     const loadChatHistory = async () => {
+      if (!userId) return;
+
       const { data, error } = await supabase
         .from('chat_history')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -119,8 +139,10 @@ const ChatInterface = () => {
       }
     };
 
-    loadChatHistory();
-  }, []);
+    if (userId) {
+      loadChatHistory();
+    }
+  }, [userId]);
 
   return (
     <div className="h-screen flex">
