@@ -7,9 +7,8 @@ interface FileUploadAreaProps {
 }
 
 export const FileUploadArea = ({ onDrop }: FileUploadAreaProps) => {
-  const { getRootProps, getInputProps } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'application/pdf': ['.pdf'],
       'image/*': ['.png', '.jpg', '.jpeg'],
       'text/plain': ['.txt']
     },
@@ -22,12 +21,14 @@ export const FileUploadArea = ({ onDrop }: FileUploadAreaProps) => {
   return (
     <div
       {...getRootProps()}
-      className="border-2 border-dashed rounded-lg p-4 text-center mb-4 hover:bg-secondary/50 transition-colors cursor-pointer"
+      className={`border-2 border-dashed rounded-lg p-4 text-center mb-4 transition-colors cursor-pointer ${
+        isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-secondary/50'
+      }`}
     >
       <input {...getInputProps()} />
       <Upload className="mx-auto mb-2" />
       <p className="text-sm text-muted-foreground">
-        Drop a file here, or click to select (PDF, Images, or Text files up to 10MB)
+        Drop a file here, or click to select (Images or Text files up to 10MB)
       </p>
     </div>
   );

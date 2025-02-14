@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +21,7 @@ const ChatInterface = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        setMessages([{ type: "assistant", content: "Hi! Welcome to Studify. I'm your AI study assistant. You can upload study materials like images or text files, and I'll help you understand them better. Just drag and drop a file to get started!" }]);
       }
     };
     getCurrentUser();
@@ -137,7 +137,7 @@ const ChatInterface = () => {
         .insert({
           filename: file.name,
           file_type: file.type,
-          content: file.type.startsWith('image/') ? null : processedContent,
+          content: processedContent,
           file_url: fileUrl,
           document_type: file.type.startsWith('image/') ? 'image' : 'text',
           user_id: userId
@@ -165,21 +165,10 @@ const ChatInterface = () => {
 
       if (updateError) throw updateError;
 
-      const { data: chatData, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          title: `Chat about ${file.name}`,
-          user_id: userId,
-          document_id: documentData.id
-        })
-        .select()
-        .single();
-
-      if (chatError) throw chatError;
-
-      setChats(prev => [chatData, ...prev]);
-      setCurrentChatId(chatData.id);
-      setMessages([]);
+      setMessages(prev => [
+        ...prev,
+        { type: "assistant", content: `I've successfully processed your ${file.type.startsWith('image/') ? 'image' : 'document'}. Here's what I found:\n\n${analysis}` }
+      ]);
 
       toast({
         title: "Document processed",
