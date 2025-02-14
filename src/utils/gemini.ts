@@ -54,3 +54,19 @@ export async function generateQuiz(content: string) {
     throw error;
   }
 }
+
+export async function performOCR(imageData: string) {
+  try {
+    const ai = await initializeGeminiAI();
+    const model = ai.getGenerativeModel({ model: "gemini-pro-vision" });
+    
+    const prompt = "Extract and return all the text from this image. Format it naturally with proper spacing and line breaks.";
+    
+    const result = await model.generateContent([prompt, imageData]);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error('Error performing OCR:', error);
+    throw error;
+  }
+}

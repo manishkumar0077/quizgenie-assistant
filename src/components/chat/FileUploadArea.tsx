@@ -10,12 +10,12 @@ export const FileUploadArea = ({ onDrop }: FileUploadAreaProps) => {
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
       'application/pdf': ['.pdf'],
-      'application/vnd.ms-powerpoint': ['.ppt'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'image/*': ['.png', '.jpg', '.jpeg']
+      'image/*': ['.png', '.jpg', '.jpeg'],
+      'text/plain': ['.txt']
     },
     maxFiles: 1,
     multiple: false,
+    maxSize: 10485760, // 10MB
     onDrop
   });
 
@@ -27,7 +27,7 @@ export const FileUploadArea = ({ onDrop }: FileUploadAreaProps) => {
       <input {...getInputProps()} />
       <Upload className="mx-auto mb-2" />
       <p className="text-sm text-muted-foreground">
-        Drag & drop files here, or click to select files
+        Drop a file here, or click to select (PDF, Images, or Text files up to 10MB)
       </p>
     </div>
   );

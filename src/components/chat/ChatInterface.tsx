@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { analyzeDocument, generateQuiz } from "@/utils/gemini";
+import { analyzeDocument, generateQuiz, performOCR } from "@/utils/gemini";
 import { Chat, Message } from "@/types/chat";
 import { ChatSidebar } from "./ChatSidebar";
 import { FileUploadArea } from "./FileUploadArea";
@@ -94,6 +94,34 @@ const ChatInterface = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
+      
+      let fileContent: string;
+      
+      if (file.type.startsWith('image/')) {
+        // Handle image files with OCR
+        const reader = new FileReader();
+        fileContent = await new Promise((resolve, reject) => {
+          reader.onload = async (e) => {
+            try {
+              const base64Data = e.target?.result as string;
+              const ocrResult = await performOCR(base64Data);
+              resolve(ocrResult);
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      } else {
+        // Handle text-based files
+        fileContent = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsText(file);
+        });
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('study_materials')
         .upload(`${userId}/${fileName}`, file);
@@ -105,7 +133,7 @@ const ChatInterface = () => {
         .insert({
           filename: file.name,
           file_type: file.type,
-          content: 'Processing...',
+          content: fileContent,
           user_id: userId
         })
         .select()
@@ -118,19 +146,12 @@ const ChatInterface = () => {
         description: "Processing your document...",
       });
 
-      const fileContent = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result);
-        reader.readAsText(file);
-      });
-
-      const analysis = await analyzeDocument(fileContent as string);
-      const quiz = await generateQuiz(fileContent as string);
+      const analysis = await analyzeDocument(fileContent);
+      const quiz = await generateQuiz(fileContent);
 
       const { error: updateError } = await supabase
         .from('documents')
         .update({
-          content: fileContent as string,
           analyzed_content: analysis,
           quiz_metadata: quiz
         })
