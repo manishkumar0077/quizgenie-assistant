@@ -2,27 +2,16 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/integrations/supabase/client";
 
-type Secret = {
-  id: string;
-  name: string;
-  value: string;
-  created_at: string;
-  updated_at: string;
-};
-
 async function getGeminiApiKey(): Promise<string> {
   const { data, error } = await supabase
-    .from('secrets')
-    .select('value')
-    .eq('name', 'GEMINI_API_KEY')
-    .maybeSingle<Secret>();
+    .rpc('get_secret', { secret_name: 'GEMINI_API_KEY' });
   
-  if (error || !data?.value) {
+  if (error || !data) {
     console.error('Error fetching Gemini API key:', error);
     throw new Error('Failed to fetch Gemini API key');
   }
   
-  return data.value;
+  return data;
 }
 
 let genAI: GoogleGenerativeAI | null = null;
