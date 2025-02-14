@@ -95,8 +95,8 @@ const ChatInterface = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       
-      let fileContent: string;
       let processedContent: string;
+      let fileUrl: string | null = null;
       
       if (file.type.startsWith('image/')) {
         // For images, first store the file, then process with OCR
@@ -110,6 +110,8 @@ const ChatInterface = () => {
         const { data: { publicUrl } } = supabase.storage
           .from('study_materials')
           .getPublicUrl(`${userId}/${fileName}`);
+        
+        fileUrl = publicUrl;
 
         // Convert image to base64 for OCR
         const base64Data = await new Promise<string>((resolve, reject) => {
@@ -121,15 +123,13 @@ const ChatInterface = () => {
 
         // Perform OCR on the image
         processedContent = await performOCR(base64Data);
-        fileContent = publicUrl; // Store the URL instead of binary data
       } else {
         // For text files, read and store the content directly
-        fileContent = await new Promise((resolve) => {
+        processedContent = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.readAsText(file);
         });
-        processedContent = fileContent;
       }
 
       const { data: documentData, error: dbError } = await supabase
@@ -137,9 +137,10 @@ const ChatInterface = () => {
         .insert({
           filename: file.name,
           file_type: file.type,
-          content: file.type.startsWith('image/') ? null : fileContent, // Only store text content directly
-          user_id: userId,
-          document_type: file.type.startsWith('image/') ? 'image' : 'text'
+          content: file.type.startsWith('image/') ? null : processedContent,
+          file_url: fileUrl,
+          document_type: file.type.startsWith('image/') ? 'image' : 'text',
+          user_id: userId
         })
         .select()
         .single();
