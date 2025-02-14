@@ -96,45 +96,50 @@ const ChatInterface = () => {
       const fileName = `${Math.random()}.${fileExt}`;
       
       let fileContent: string;
+      let processedContent: string;
       
       if (file.type.startsWith('image/')) {
-        // Handle image files with OCR
-        const reader = new FileReader();
-        fileContent = await new Promise((resolve, reject) => {
-          reader.onload = async (e) => {
-            try {
-              const base64Data = e.target?.result as string;
-              const ocrResult = await performOCR(base64Data);
-              resolve(ocrResult);
-            } catch (error) {
-              reject(error);
-            }
-          };
+        // For images, first store the file, then process with OCR
+        const { error: uploadError } = await supabase.storage
+          .from('study_materials')
+          .upload(`${userId}/${fileName}`, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('study_materials')
+          .getPublicUrl(`${userId}/${fileName}`);
+
+        // Convert image to base64 for OCR
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
+
+        // Perform OCR on the image
+        processedContent = await performOCR(base64Data);
+        fileContent = publicUrl; // Store the URL instead of binary data
       } else {
-        // Handle text-based files
+        // For text files, read and store the content directly
         fileContent = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.readAsText(file);
         });
+        processedContent = fileContent;
       }
-
-      const { error: uploadError } = await supabase.storage
-        .from('study_materials')
-        .upload(`${userId}/${fileName}`, file);
-
-      if (uploadError) throw uploadError;
 
       const { data: documentData, error: dbError } = await supabase
         .from('documents')
         .insert({
           filename: file.name,
           file_type: file.type,
-          content: fileContent,
-          user_id: userId
+          content: file.type.startsWith('image/') ? null : fileContent, // Only store text content directly
+          user_id: userId,
+          document_type: file.type.startsWith('image/') ? 'image' : 'text'
         })
         .select()
         .single();
@@ -146,8 +151,8 @@ const ChatInterface = () => {
         description: "Processing your document...",
       });
 
-      const analysis = await analyzeDocument(fileContent);
-      const quiz = await generateQuiz(fileContent);
+      const analysis = await analyzeDocument(processedContent);
+      const quiz = await generateQuiz(processedContent);
 
       const { error: updateError } = await supabase
         .from('documents')
