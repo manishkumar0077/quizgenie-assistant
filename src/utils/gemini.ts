@@ -2,12 +2,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/integrations/supabase/client";
 
-async function getGeminiApiKey() {
+async function getGeminiApiKey(): Promise<string> {
   const { data, error } = await supabase
     .from('secrets')
-    .select('value')
+    .select()
     .eq('name', 'GEMINI_API_KEY')
-    .single();
+    .maybeSingle();
   
   if (error || !data) {
     console.error('Error fetching Gemini API key:', error);
