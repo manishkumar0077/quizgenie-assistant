@@ -15,6 +15,7 @@ const ChatInterface = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -187,21 +188,26 @@ const ChatInterface = () => {
     if (!input.trim() || !userId || !currentChatId) return;
     
     try {
+      const userMessage = input;
+      setMessages(prev => [...prev, { type: "user", content: userMessage }]);
+      setInput(""); // Clear input immediately for better UX
+
       await supabase.from('chat_history').insert({
-        message: input,
+        message: userMessage,
         role: 'user',
         user_id: userId,
         chat_id: currentChatId
       });
 
-      setMessages([...messages, { type: "user", content: input }]);
-      setInput("");
+      setIsProcessing(true);
 
       const { data: chatData } = await supabase
         .from('chats')
         .select('document_id')
         .eq('id', currentChatId)
         .single();
+
+      let aiResponse = "";
 
       if (chatData?.document_id) {
         const { data: documentData } = await supabase
@@ -211,26 +217,41 @@ const ChatInterface = () => {
           .single();
 
         if (documentData) {
-          const response = await analyzeDocument(
-            `Context: ${documentData.analyzed_content}\n\nQuestion: ${input}\n\nProvide a helpful response based on the context.`
+          aiResponse = await analyzeDocument(
+            `Context: ${documentData.analyzed_content}\n\n` +
+            `Previous conversation: ${messages.map(m => `${m.type}: ${m.content}`).join('\n')}\n\n` +
+            `User question: ${userMessage}\n\n` +
+            `Provide a helpful, conversational response based on the context and previous conversation. ` +
+            `If the question is not related to the document, politely remind the user about the document's topic.`
           );
-
-          await supabase.from('chat_history').insert({
-            message: response,
-            role: 'assistant',
-            user_id: userId,
-            chat_id: currentChatId
-          });
-
-          setMessages(prev => [...prev, { type: "assistant", content: response }]);
         }
+      } else {
+        aiResponse = await analyzeDocument(
+          `You are a helpful study assistant. The user asks: ${userMessage}\n\n` +
+          `If they haven't uploaded a document yet, remind them they can do so to get more specific help.`
+        );
       }
+
+      await supabase.from('chat_history').insert({
+        message: aiResponse,
+        role: 'assistant',
+        user_id: userId,
+        chat_id: currentChatId
+      });
+
+      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      setMessages(prev => [...prev, { 
+        type: "assistant", 
+        content: "I apologize, but I encountered an error processing your request. Please try again." 
+      }]);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -284,11 +305,13 @@ const ChatInterface = () => {
       <div className="flex-1 flex flex-col">
         <ChatMessages messages={messages} />
         <div className="p-4 border-t">
-          <FileUploadArea onDrop={handleFileUpload} />
+          <FileUploadArea onDrop={handleFileUpload} disabled={isProcessing} />
           <ChatInput
             value={input}
             onChange={setInput}
             onSend={handleSend}
+            disabled={isProcessing}
+            placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
           />
         </div>
       </div>
