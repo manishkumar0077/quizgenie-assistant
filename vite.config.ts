@@ -19,8 +19,5 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-  define: {
-    'import.meta.env.GEMINI_API_KEY': JSON.stringify('AIzaSyCH7HrkJv002V7MlQCfI6hVFE6-kHn5RLs')
   }
 }));

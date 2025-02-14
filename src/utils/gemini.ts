@@ -1,11 +1,36 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from "@/integrations/supabase/client";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.GEMINI_API_KEY || '');
+async function getGeminiApiKey() {
+  const { data, error } = await supabase
+    .from('secrets')
+    .select('value')
+    .eq('name', 'GEMINI_API_KEY')
+    .single();
+  
+  if (error || !data) {
+    console.error('Error fetching Gemini API key:', error);
+    throw new Error('Failed to fetch Gemini API key');
+  }
+  
+  return data.value;
+}
+
+let genAI: GoogleGenerativeAI | null = null;
+
+async function initializeGeminiAI() {
+  if (!genAI) {
+    const apiKey = await getGeminiApiKey();
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
 
 export async function analyzeDocument(content: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const ai = await initializeGeminiAI();
+    const model = ai.getGenerativeModel({ model: "gemini-pro" });
     const result = await model.generateContent(content);
     const response = await result.response;
     return response.text();
@@ -17,7 +42,8 @@ export async function analyzeDocument(content: string) {
 
 export async function generateQuiz(content: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const ai = await initializeGeminiAI();
+    const model = ai.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `Based on the following content, generate a quiz with 5 multiple choice questions. Format the response as a JSON array where each question object has the following properties: question, options (array of 4 choices), and correctAnswer (index of correct option). Content: ${content}`;
     
     const result = await model.generateContent(prompt);
