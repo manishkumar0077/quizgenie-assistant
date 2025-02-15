@@ -54,8 +54,22 @@ const AuthForm = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
       });
-      if (error) throw error;
+      if (error) {
+        // Handle specific OAuth error
+        if (error.message.includes('redirect_uri_mismatch')) {
+          toast({
+            title: "Google Sign In Unavailable",
+            description: "Google sign-in is currently being configured. Please use email/password for now.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
