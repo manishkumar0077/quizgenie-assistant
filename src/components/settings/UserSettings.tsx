@@ -36,14 +36,30 @@ export const UserSettings = () => {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
-      setProfile(data);
-      setFullName(data.full_name || "");
-      setBio(data.bio || "");
-      setAvatarUrl(data.avatar_url || "");
+      // If no profile exists, create one
+      if (!data) {
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([{ id: user.id }])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        setProfile(newProfile);
+        // Initialize with empty values since it's a new profile
+        setFullName("");
+        setBio("");
+        setAvatarUrl("");
+      } else {
+        setProfile(data);
+        setFullName(data.full_name || "");
+        setBio(data.bio || "");
+        setAvatarUrl(data.avatar_url || "");
+      }
     } catch (error: any) {
       toast({
         title: "Error loading profile",
