@@ -10,9 +10,11 @@ import { Loader2 } from "lucide-react";
 
 interface Profile {
   id: string;
+  username: string | null;
   full_name: string | null;
-  avatar_url: string | null;
   bio: string | null;
+  avatar_url: string | null;
+  created_at: string | null;
 }
 
 export const UserSettings = () => {
@@ -44,18 +46,22 @@ export const UserSettings = () => {
       if (!data) {
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert([{ id: user.id }])
+          .insert([{ 
+            id: user.id,
+            full_name: '',
+            bio: '',
+            avatar_url: ''
+          }])
           .select()
           .single();
 
         if (createError) throw createError;
-        setProfile(newProfile);
-        // Initialize with empty values since it's a new profile
+        setProfile(newProfile as Profile);
         setFullName("");
         setBio("");
         setAvatarUrl("");
       } else {
-        setProfile(data);
+        setProfile(data as Profile);
         setFullName(data.full_name || "");
         setBio(data.bio || "");
         setAvatarUrl(data.avatar_url || "");
@@ -130,7 +136,7 @@ export const UserSettings = () => {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
+      <h2 className="text-2xl font-bold mb-6">Studify Profile Settings</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center space-x-4">
           <Avatar className="w-20 h-20">

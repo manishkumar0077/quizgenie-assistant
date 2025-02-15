@@ -34,7 +34,7 @@ const AuthForm = () => {
         if (error) throw error;
         else {
           toast({
-            title: "Account created!",
+            title: "Welcome to Studify!",
             description: "Please check your email to verify your account.",
           });
         }
@@ -90,7 +90,7 @@ const AuthForm = () => {
         <Card className="p-8 backdrop-blur-lg bg-white/80 shadow-xl">
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              StudyGenius
+              Studify
             </h1>
             <p className="text-muted-foreground">Your AI-powered study companion</p>
           </div>
