@@ -259,6 +259,49 @@ const ChatInterface = () => {
     await supabase.auth.signOut();
   };
 
+  const handleDeleteChat = async (chatId: string) => {
+    if (!userId) return;
+
+    try {
+      // Delete chat history first
+      await supabase
+        .from('chat_history')
+        .delete()
+        .eq('chat_id', chatId);
+
+      // Then delete the chat
+      await supabase
+        .from('chats')
+        .delete()
+        .eq('id', chatId);
+
+      // Update local state
+      setChats(chats.filter(chat => chat.id !== chatId));
+      
+      // If current chat was deleted, select another chat or clear messages
+      if (currentChatId === chatId) {
+        const remainingChats = chats.filter(chat => chat.id !== chatId);
+        if (remainingChats.length > 0) {
+          setCurrentChatId(remainingChats[0].id);
+        } else {
+          setCurrentChatId(null);
+          setMessages([]);
+        }
+      }
+
+      toast({
+        title: "Chat deleted",
+        description: "The chat has been deleted successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error deleting chat",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     const loadChatHistory = async () => {
       if (!userId || !currentChatId) return;
@@ -301,11 +344,15 @@ const ChatInterface = () => {
         onChatSelect={setCurrentChatId}
         onNewChat={createNewChat}
         onSignOut={handleSignOut}
+        onDeleteChat={handleDeleteChat}
       />
       <div className="flex-1 flex flex-col">
         <ChatMessages messages={messages} />
         <div className="p-4 border-t">
-          <FileUploadArea onDrop={handleFileUpload} disabled={isProcessing} />
+          <FileUploadArea 
+            onDrop={handleFileUpload} 
+            isProcessing={isProcessing} 
+          />
           <ChatInput
             value={input}
             onChange={setInput}
