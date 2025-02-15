@@ -11,8 +11,6 @@ import { Loader2 } from "lucide-react";
 interface Profile {
   id: string;
   username: string | null;
-  full_name: string | null;
-  bio: string | null;
   avatar_url: string | null;
   created_at: string | null;
 }
@@ -48,22 +46,20 @@ export const UserSettings = () => {
           .from('profiles')
           .insert([{ 
             id: user.id,
-            full_name: '',
-            bio: '',
+            username: '',
             avatar_url: ''
           }])
           .select()
           .single();
 
         if (createError) throw createError;
-        setProfile(newProfile as Profile);
+        setProfile(newProfile);
         setFullName("");
         setBio("");
         setAvatarUrl("");
       } else {
-        setProfile(data as Profile);
-        setFullName(data.full_name || "");
-        setBio(data.bio || "");
+        setProfile(data);
+        setFullName(data.username || "");
         setAvatarUrl(data.avatar_url || "");
       }
     } catch (error: any) {
@@ -111,8 +107,7 @@ export const UserSettings = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName,
-          bio,
+          username: fullName,
           avatar_url: avatarUrl,
         })
         .eq('id', profile.id);
@@ -154,21 +149,11 @@ export const UserSettings = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Full Name</label>
+          <label className="text-sm font-medium">Username</label>
           <Input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Your full name"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Bio</label>
-          <Textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Tell us about yourself"
-            rows={4}
+            placeholder="Your username"
           />
         </div>
 
