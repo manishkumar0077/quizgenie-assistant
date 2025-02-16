@@ -10,8 +10,7 @@ interface FileUploadAreaProps {
 export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg'],
-      'text/plain': ['.txt']
+      'image/*': ['.png', '.jpg', '.jpeg']
     },
     maxFiles: 1,
     multiple: false,
@@ -31,8 +30,8 @@ export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) =>
       <Upload className="mx-auto mb-2" />
       <p className="text-sm text-muted-foreground">
         {isProcessing 
-          ? "Processing document... Please wait."
-          : "Drop a file here, or click to select (Images or Text files up to 10MB)"}
+          ? "Processing image... Please wait."
+          : "Drop an image here, or click to select (Images up to 10MB)"}
       </p>
     </div>
   );

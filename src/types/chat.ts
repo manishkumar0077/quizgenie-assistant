@@ -7,6 +7,6 @@ export interface Chat {
 }
 
 export interface Message {
-  type: "user" | "bot";
+  type: string;
   content: string;
 }
