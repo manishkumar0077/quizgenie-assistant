@@ -1,14 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Message } from "@/types/chat";
-import ChatMessages from "./ChatMessages";
-import ChatInput from "./ChatInput";
+import { ChatMessages } from "./ChatMessages";
+import { ChatInput } from "./ChatInput";
 import { FileUploadArea } from "./FileUploadArea";
-import UserSettings from "../settings/UserSettings";
-import ChatSidebar from "./ChatSidebar";
+import { UserSettings } from "../settings/UserSettings";
+import { ChatSidebar } from "./ChatSidebar";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Book, Brain, ChartLineUp, Stars } from "lucide-react";
+import { Book, Brain, LineChart, Stars } from "lucide-react";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,12 +61,11 @@ const ChatInterface = () => {
 
         const publicURL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/document-store/${fileName}`;
 
-        setMessages(prevMessages => [...prevMessages, {
-          id: Date.now().toString(),
-          content: `Uploaded ${file.name}. Analyzing...`,
-          sender: "bot",
-          timestamp: new Date().toISOString(),
-        }]);
+        const newMessage: Message = {
+          type: "bot",
+          content: `Uploaded ${file.name}. Analyzing...`
+        };
+        setMessages(prevMessages => [...prevMessages, newMessage]);
 
         const { data, error } = await supabase.functions.invoke('process-document', {
           body: {
@@ -84,12 +84,12 @@ const ChatInterface = () => {
           });
           setMessages(prevMessages => prevMessages.map(msg =>
             msg.content === `Uploaded ${file.name}. Analyzing...` ?
-              { ...msg, content: `Failed to process ${file.name}. Please try again.`, } : msg
+              { ...msg, type: "bot", content: `Failed to process ${file.name}. Please try again.` } : msg
           ));
         } else {
           setMessages(prevMessages => prevMessages.map(msg =>
             msg.content === `Uploaded ${file.name}. Analyzing...` ?
-              { ...msg, content: data.response } : msg
+              { ...msg, type: "bot", content: data.response } : msg
           ));
           toast({
             description: `Document ${file.name} processed successfully!`,
@@ -112,10 +112,8 @@ const ChatInterface = () => {
     }
 
     const newMessage: Message = {
-      id: Date.now().toString(),
-      content: content,
-      sender: "user",
-      timestamp: new Date().toISOString(),
+      type: "user",
+      content: content
     };
 
     setMessages((prevMessages) => [...prevMessages, newMessage]);
@@ -137,15 +135,10 @@ const ChatInterface = () => {
           description: "Failed to send message. Please try again.",
           variant: "destructive",
         });
-        setMessages(prevMessages => prevMessages.map(msg =>
-          msg.id === newMessage.id ? { ...msg, content: "Failed to send message. Please try again." } : msg
-        ));
       } else {
         const botResponse: Message = {
-          id: Date.now().toString(),
-          content: data.response,
-          sender: "bot",
-          timestamp: new Date().toISOString(),
+          type: "bot",
+          content: data.response
         };
         setMessages((prevMessages) => [...prevMessages, botResponse]);
       }
@@ -201,7 +194,7 @@ const ChatInterface = () => {
             transition={{ delay: 0.4 }}
             className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex items-center gap-4"
           >
-            <ChartLineUp className="w-8 h-8 text-green-300" />
+            <LineChart className="w-8 h-8 text-green-300" />
             <div>
               <h3 className="text-white font-semibold">Progress Tracking</h3>
               <p className="text-gray-300 text-sm">Monitor your learning journey</p>
