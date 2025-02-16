@@ -92,52 +92,55 @@ const ChatInterface = () => {
     if (!userId || acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
-    setIsProcessing(true);
-
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
-        .from('study_materials')
-        .upload(`${userId}/${fileName}`, file);
+      let processedContent: string;
+      let fileUrl: string | null = null;
+      
+      if (file.type.startsWith('image/')) {
+        // For images, first store the file, then process with OCR
+        const { error: uploadError } = await supabase.storage
+          .from('study_materials')
+          .upload(`${userId}/${fileName}`, file);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('study_materials')
-        .getPublicUrl(`${userId}/${fileName}`);
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('study_materials')
+          .getPublicUrl(`${userId}/${fileName}`);
+        
+        fileUrl = publicUrl;
 
-      const base64Data = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64 = e.target?.result as string;
-          resolve(base64.split(',')[1]); // Remove data URL prefix
-        };
-        reader.readAsDataURL(file);
-      });
+        // Convert image to base64 for OCR
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
-      const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        body: new FormData(),
-      });
-
-      const ocrData = await ocrResponse.json();
-
-      if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
-        throw new Error('No text found in the image');
+        // Perform OCR on the image
+        processedContent = await performOCR(base64Data);
+      } else {
+        // For text files, read and store the content directly
+        processedContent = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsText(file);
+        });
       }
-
-      const extractedText = ocrData.ParsedResults[0].ParsedText;
 
       const { data: documentData, error: dbError } = await supabase
         .from('documents')
         .insert({
           filename: file.name,
           file_type: file.type,
-          content: extractedText,
-          file_url: publicUrl,
-          document_type: 'image',
+          content: processedContent,
+          file_url: fileUrl,
+          document_type: file.type.startsWith('image/') ? 'image' : 'text',
           user_id: userId
         })
         .select()
@@ -145,24 +148,32 @@ const ChatInterface = () => {
 
       if (dbError) throw dbError;
 
-      setMessages(prev => [
-        ...prev,
-        { 
-          type: "assistant", 
-          content: `I've analyzed your image and here's what I found:\n\n${extractedText}`
-        }
-      ]);
-
-      await supabase.from('chat_history').insert({
-        message: extractedText,
-        role: 'assistant',
-        user_id: userId,
-        chat_id: currentChatId
+      toast({
+        title: "File uploaded",
+        description: "Processing your document...",
       });
 
+      const analysis = await analyzeDocument(processedContent);
+      const quiz = await generateQuiz(processedContent);
+
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({
+          analyzed_content: analysis,
+          quiz_metadata: quiz
+        })
+        .eq('id', documentData.id);
+
+      if (updateError) throw updateError;
+
+      setMessages(prev => [
+        ...prev,
+        { type: "assistant", content: `I've successfully processed your ${file.type.startsWith('image/') ? 'image' : 'document'}. Here's what I found:\n\n${analysis}` }
+      ]);
+
       toast({
-        title: "Image processed successfully",
-        description: "The text has been extracted and added to the chat.",
+        title: "Document processed",
+        description: "Your document has been analyzed and is ready for chat!",
       });
     } catch (error: any) {
       toast({
@@ -170,15 +181,6 @@ const ChatInterface = () => {
         description: error.message,
         variant: "destructive",
       });
-      setMessages(prev => [
-        ...prev,
-        { 
-          type: "assistant", 
-          content: "I apologize, but I encountered an error processing your image. Please try again with a clearer image."
-        }
-      ]);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
