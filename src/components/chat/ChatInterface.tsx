@@ -1,367 +1,231 @@
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { analyzeDocument, generateQuiz, performOCR } from "@/utils/gemini";
-import { Chat, Message } from "@/types/chat";
-import { ChatSidebar } from "./ChatSidebar";
+import { Message } from "@/types/chat";
+import ChatMessages from "./ChatMessages";
+import ChatInput from "./ChatInput";
 import { FileUploadArea } from "./FileUploadArea";
-import { ChatMessages } from "./ChatMessages";
-import { ChatInput } from "./ChatInput";
+import UserSettings from "../settings/UserSettings";
+import ChatSidebar from "./ChatSidebar";
+import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Book, Brain, ChartLineUp, Stars } from "lucide-react";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const { toast } = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const getCurrentUser = async () => {
+    const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
-        setMessages([{ type: "assistant", content: "Hi! Welcome to Studify. I'm your AI study assistant. You can upload study materials like images or text files, and I'll help you understand them better. Just drag and drop a file to get started!" }]);
       }
     };
-    getCurrentUser();
+    getUser();
   }, []);
 
-  useEffect(() => {
-    const loadChats = async () => {
-      if (!userId) return;
-
-      const { data, error } = await supabase
-        .from('chats')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
+  const handleFileUpload = async (acceptedFiles: File[]) => {
+    setIsProcessing(true);
+    try {
+      if (!userId) {
         toast({
-          title: "Error loading chats",
-          description: error.message,
+          title: "Authentication Error",
+          description: "User ID not found. Please ensure you are logged in.",
           variant: "destructive",
         });
         return;
       }
 
-      if (data) {
-        setChats(data);
-        if (data.length > 0 && !currentChatId) {
-          setCurrentChatId(data[0].id);
-        }
-      }
-    };
-
-    if (userId) {
-      loadChats();
-    }
-  }, [userId, currentChatId]);
-
-  const createNewChat = async () => {
-    if (!userId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('chats')
-        .insert({
-          title: `New Chat ${new Date().toLocaleString()}`,
-          user_id: userId
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setChats([data, ...chats]);
-        setCurrentChatId(data.id);
-        setMessages([]);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error creating chat",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleFileUpload = async (acceptedFiles: File[]) => {
-    if (!userId || acceptedFiles.length === 0) return;
-
-    const file = acceptedFiles[0];
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      
-      let processedContent: string;
-      let fileUrl: string | null = null;
-      
-      if (file.type.startsWith('image/')) {
-        // For images, first store the file, then process with OCR
+      for (const file of acceptedFiles) {
+        const fileName = `${userId}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
-          .from('study_materials')
-          .upload(`${userId}/${fileName}`, file);
+          .from('document-store')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        if (uploadError) throw uploadError;
-
-        // Get the public URL for the uploaded file
-        const { data: { publicUrl } } = supabase.storage
-          .from('study_materials')
-          .getPublicUrl(`${userId}/${fileName}`);
-        
-        fileUrl = publicUrl;
-
-        // Convert image to base64 for OCR
-        const base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        // Perform OCR on the image
-        processedContent = await performOCR(base64Data);
-      } else {
-        // For text files, read and store the content directly
-        processedContent = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsText(file);
-        });
-      }
-
-      const { data: documentData, error: dbError } = await supabase
-        .from('documents')
-        .insert({
-          filename: file.name,
-          file_type: file.type,
-          content: processedContent,
-          file_url: fileUrl,
-          document_type: file.type.startsWith('image/') ? 'image' : 'text',
-          user_id: userId
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      toast({
-        title: "File uploaded",
-        description: "Processing your document...",
-      });
-
-      const analysis = await analyzeDocument(processedContent);
-      const quiz = await generateQuiz(processedContent);
-
-      const { error: updateError } = await supabase
-        .from('documents')
-        .update({
-          analyzed_content: analysis,
-          quiz_metadata: quiz
-        })
-        .eq('id', documentData.id);
-
-      if (updateError) throw updateError;
-
-      setMessages(prev => [
-        ...prev,
-        { type: "assistant", content: `I've successfully processed your ${file.type.startsWith('image/') ? 'image' : 'document'}. Here's what I found:\n\n${analysis}` }
-      ]);
-
-      toast({
-        title: "Document processed",
-        description: "Your document has been analyzed and is ready for chat!",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Processing failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSend = async () => {
-    if (!input.trim() || !userId || !currentChatId) return;
-    
-    try {
-      const userMessage = input;
-      setMessages(prev => [...prev, { type: "user", content: userMessage }]);
-      setInput(""); // Clear input immediately for better UX
-
-      await supabase.from('chat_history').insert({
-        message: userMessage,
-        role: 'user',
-        user_id: userId,
-        chat_id: currentChatId
-      });
-
-      setIsProcessing(true);
-
-      const { data: chatData } = await supabase
-        .from('chats')
-        .select('document_id')
-        .eq('id', currentChatId)
-        .single();
-
-      let aiResponse = "";
-
-      if (chatData?.document_id) {
-        const { data: documentData } = await supabase
-          .from('documents')
-          .select('content, analyzed_content')
-          .eq('id', chatData.document_id)
-          .single();
-
-        if (documentData) {
-          aiResponse = await analyzeDocument(
-            `Context: ${documentData.analyzed_content}\n\n` +
-            `Previous conversation: ${messages.map(m => `${m.type}: ${m.content}`).join('\n')}\n\n` +
-            `User question: ${userMessage}\n\n` +
-            `Provide a helpful, conversational response based on the context and previous conversation. ` +
-            `If the question is not related to the document, politely remind the user about the document's topic.`
-          );
+        if (uploadError) {
+          console.error("File upload error:", uploadError);
+          toast({
+            title: "Upload Failed",
+            description: `Failed to upload ${file.name}. Please try again.`,
+            variant: "destructive",
+          });
+          continue;
         }
-      } else {
-        aiResponse = await analyzeDocument(
-          `You are a helpful study assistant. The user asks: ${userMessage}\n\n` +
-          `If they haven't uploaded a document yet, remind them they can do so to get more specific help.`
-        );
+
+        const publicURL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/document-store/${fileName}`;
+
+        setMessages(prevMessages => [...prevMessages, {
+          id: Date.now().toString(),
+          content: `Uploaded ${file.name}. Analyzing...`,
+          sender: "bot",
+          timestamp: new Date().toISOString(),
+        }]);
+
+        const { data, error } = await supabase.functions.invoke('process-document', {
+          body: {
+            file_url: publicURL,
+            file_name: file.name,
+            user_id: userId,
+          }
+        });
+
+        if (error) {
+          console.error("Function invocation error:", error);
+          toast({
+            title: "Processing Failed",
+            description: `Failed to process ${file.name}. Please try again.`,
+            variant: "destructive",
+          });
+          setMessages(prevMessages => prevMessages.map(msg =>
+            msg.content === `Uploaded ${file.name}. Analyzing...` ?
+              { ...msg, content: `Failed to process ${file.name}. Please try again.`, } : msg
+          ));
+        } else {
+          setMessages(prevMessages => prevMessages.map(msg =>
+            msg.content === `Uploaded ${file.name}. Analyzing...` ?
+              { ...msg, content: data.response } : msg
+          ));
+          toast({
+            description: `Document ${file.name} processed successfully!`,
+          });
+        }
       }
-
-      await supabase.from('chat_history').insert({
-        message: aiResponse,
-        role: 'assistant',
-        user_id: userId,
-        chat_id: currentChatId
-      });
-
-      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      setMessages(prev => [...prev, { 
-        type: "assistant", 
-        content: "I apologize, but I encountered an error processing your request. Please try again." 
-      }]);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const handleDeleteChat = async (chatId: string) => {
-    if (!userId) return;
-
-    try {
-      // Delete chat history first
-      await supabase
-        .from('chat_history')
-        .delete()
-        .eq('chat_id', chatId);
-
-      // Then delete the chat
-      await supabase
-        .from('chats')
-        .delete()
-        .eq('id', chatId);
-
-      // Update local state
-      setChats(chats.filter(chat => chat.id !== chatId));
-      
-      // If current chat was deleted, select another chat or clear messages
-      if (currentChatId === chatId) {
-        const remainingChats = chats.filter(chat => chat.id !== chatId);
-        if (remainingChats.length > 0) {
-          setCurrentChatId(remainingChats[0].id);
-        } else {
-          setCurrentChatId(null);
-          setMessages([]);
-        }
-      }
-
+  const handleNewMessage = async (content: string) => {
+    if (!userId) {
       toast({
-        title: "Chat deleted",
-        description: "The chat has been deleted successfully.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error deleting chat",
-        description: error.message,
+        title: "Authentication Error",
+        description: "User ID not found. Please ensure you are logged in.",
         variant: "destructive",
       });
+      return;
+    }
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content: content,
+      sender: "user",
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    setIsProcessing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: {
+          message: content,
+          user_id: userId,
+        }
+      });
+
+      if (error) {
+        console.error("Function invocation error:", error);
+        toast({
+          title: "Chat Error",
+          description: "Failed to send message. Please try again.",
+          variant: "destructive",
+        });
+        setMessages(prevMessages => prevMessages.map(msg =>
+          msg.id === newMessage.id ? { ...msg, content: "Failed to send message. Please try again." } : msg
+        ));
+      } else {
+        const botResponse: Message = {
+          id: Date.now().toString(),
+          content: data.response,
+          sender: "bot",
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prevMessages) => [...prevMessages, botResponse]);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  useEffect(() => {
-    const loadChatHistory = async () => {
-      if (!userId || !currentChatId) return;
-
-      const { data, error } = await supabase
-        .from('chat_history')
-        .select('*')
-        .eq('chat_id', currentChatId)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        toast({
-          title: "Error loading chat history",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data) {
-        setMessages(
-          data.map(msg => ({
-            type: msg.role,
-            content: msg.message
-          }))
-        );
-      }
-    };
-
-    if (userId && currentChatId) {
-      loadChatHistory();
-    }
-  }, [userId, currentChatId]);
-
   return (
-    <div className="h-screen flex">
-      <ChatSidebar
-        chats={chats}
-        currentChatId={currentChatId}
-        onChatSelect={setCurrentChatId}
-        onNewChat={createNewChat}
-        onSignOut={handleSignOut}
-        onDeleteChat={handleDeleteChat}
-      />
-      <div className="flex-1 flex flex-col">
-        <ChatMessages messages={messages} />
-        <div className="p-4 border-t">
-          <FileUploadArea 
-            onDrop={handleFileUpload} 
-            isProcessing={isProcessing} 
-          />
-          <ChatInput
-            value={input}
-            onChange={setInput}
-            onSend={handleSend}
-            disabled={isProcessing}
-            placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
-          />
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-800">
+      <ChatSidebar currentChatId={currentChatId} onChatSelect={setCurrentChatId} />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 col-span-full"
+          >
+            <FileUploadArea onDrop={handleFileUpload} isProcessing={isProcessing} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex items-center gap-4"
+          >
+            <Book className="w-8 h-8 text-purple-300" />
+            <div>
+              <h3 className="text-white font-semibold">Study Materials</h3>
+              <p className="text-gray-300 text-sm">Upload and analyze documents</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex items-center gap-4"
+          >
+            <Brain className="w-8 h-8 text-blue-300" />
+            <div>
+              <h3 className="text-white font-semibold">AI Assistant</h3>
+              <p className="text-gray-300 text-sm">Get instant help and explanations</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex items-center gap-4"
+          >
+            <ChartLineUp className="w-8 h-8 text-green-300" />
+            <div>
+              <h3 className="text-white font-semibold">Progress Tracking</h3>
+              <p className="text-gray-300 text-sm">Monitor your learning journey</p>
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="flex-1 overflow-hidden bg-white/5 backdrop-blur-lg rounded-t-2xl mx-4">
+          <ChatMessages messages={messages} />
+        </div>
+        
+        <div className="p-4">
+          <ChatInput onSendMessage={handleNewMessage} />
         </div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.5 }}
+        className="w-64 p-4 bg-white/5 backdrop-blur-lg"
+      >
+        <UserSettings />
+      </motion.div>
     </div>
   );
 };
