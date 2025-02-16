@@ -7,6 +7,10 @@ import { ChatSidebar } from "./ChatSidebar";
 import { FileUploadArea } from "./FileUploadArea";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Menu } from "lucide-react";
+import { Button } from "../ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -16,6 +20,8 @@ const ChatInterface = () => {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -261,22 +267,18 @@ const ChatInterface = () => {
     if (!userId) return;
 
     try {
-      // Delete chat history first
       await supabase
         .from('chat_history')
         .delete()
         .eq('chat_id', chatId);
 
-      // Then delete the chat
       await supabase
         .from('chats')
         .delete()
         .eq('id', chatId);
 
-      // Update local state
       setChats(chats.filter(chat => chat.id !== chatId));
       
-      // If current chat was deleted, select another chat or clear messages
       if (currentChatId === chatId) {
         const remainingChats = chats.filter(chat => chat.id !== chatId);
         if (remainingChats.length > 0) {
@@ -336,29 +338,70 @@ const ChatInterface = () => {
 
   return (
     <div className="h-screen flex">
-      <ChatSidebar
-        chats={chats}
-        currentChatId={currentChatId}
-        onChatSelect={setCurrentChatId}
-        onNewChat={createNewChat}
-        onSignOut={handleSignOut}
-        onDeleteChat={handleDeleteChat}
-      />
+      <AnimatePresence>
+        {(isSidebarOpen || !isMobile) && (
+          <motion.div
+            initial={{ x: -280, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -280, opacity: 0 }}
+            transition={{ type: "spring", bounce: 0.3 }}
+            className={`${isMobile ? 'absolute z-50' : 'relative'} h-full`}
+          >
+            <ChatSidebar
+              chats={chats}
+              currentChatId={currentChatId}
+              onChatSelect={(id) => {
+                setCurrentChatId(id);
+                if (isMobile) setIsSidebarOpen(false);
+              }}
+              onNewChat={() => {
+                createNewChat();
+                if (isMobile) setIsSidebarOpen(false);
+              }}
+              onSignOut={handleSignOut}
+              onDeleteChat={handleDeleteChat}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex-1 flex flex-col">
-        <ChatMessages messages={messages} />
-        <div className="p-4 border-t">
-          <FileUploadArea 
-            onDrop={handleFileUpload} 
-            isProcessing={isProcessing} 
-          />
-          <ChatInput
-            value={input}
-            onChange={setInput}
-            onSend={handleSend}
-            disabled={isProcessing}
-            placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
-          />
-        </div>
+        {isMobile && (
+          <div className="p-4 border-b">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          <div className="p-4">
+            <FileUploadArea 
+              onDrop={handleFileUpload} 
+              isProcessing={isProcessing} 
+            />
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <ChatMessages messages={messages} />
+          </div>
+          <div className="p-4 border-t">
+            <ChatInput
+              value={input}
+              onChange={setInput}
+              onSend={handleSend}
+              disabled={isProcessing}
+              placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
+            />
+          </div>
+        </motion.div>
       </div>
     </div>
   );
