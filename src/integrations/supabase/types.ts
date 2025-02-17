@@ -83,6 +83,7 @@ export type Database = {
           created_at: string
           document_type: string | null
           file_type: string
+          file_url: string | null
           filename: string
           id: string
           quiz_metadata: Json | null
@@ -95,6 +96,7 @@ export type Database = {
           created_at?: string
           document_type?: string | null
           file_type: string
+          file_url?: string | null
           filename: string
           id?: string
           quiz_metadata?: Json | null
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string
           document_type?: string | null
           file_type?: string
+          file_url?: string | null
           filename?: string
           id?: string
           quiz_metadata?: Json | null
