@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
@@ -43,6 +42,15 @@
 
 .glass-panel {
   @apply backdrop-blur-lg bg-white/40 border border-white/20 shadow-lg;
+}
+
+.retro-gradient {
+  @apply bg-gradient-to-br from-purple-400 via-pink-300 to-blue-300;
+}
+
+.y2k-shadow {
+  filter: drop-shadow(2px 2px 0 rgba(255,255,255,0.5)) 
+          drop-shadow(-2px -2px 0 rgba(0,0,0,0.1));
 }
 
 @keyframes blob {

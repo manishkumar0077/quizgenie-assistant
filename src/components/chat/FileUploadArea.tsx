@@ -1,6 +1,7 @@
 
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface FileUploadAreaProps {
   onDrop: (acceptedFiles: File[]) => Promise<void>;
@@ -20,19 +21,21 @@ export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) =>
   });
 
   return (
-    <div
+    <motion.div
       {...getRootProps()}
-      className={`border-2 border-dashed rounded-lg p-4 text-center mb-4 transition-colors cursor-pointer ${
-        isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-secondary/50'
+      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
+        isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
     >
       <input {...getInputProps()} />
-      <Upload className="mx-auto mb-2" />
-      <p className="text-sm text-muted-foreground">
+      <Upload className="mx-auto mb-2 text-purple-600" />
+      <p className="text-sm text-purple-800 font-medium">
         {isProcessing 
           ? "Processing image... Please wait."
           : "Drop an image here, or click to select (Images up to 10MB)"}
       </p>
-    </div>
+    </motion.div>
   );
 };

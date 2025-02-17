@@ -95,12 +95,9 @@ const ChatInterface = () => {
   };
 
   const handleFileUpload = async (acceptedFiles: File[]) => {
-    if (!userId || acceptedFiles.length === 0) return;
-
-    const file = acceptedFiles[0];
     setIsProcessing(true);
-
     try {
+      const file = acceptedFiles[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       
@@ -337,7 +334,7 @@ const ChatInterface = () => {
   }, [userId, currentChatId]);
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen flex bg-gradient-to-br from-purple-400 via-pink-300 to-blue-300">
       <AnimatePresence>
         {(isSidebarOpen || !isMobile) && (
           <motion.div
@@ -345,7 +342,7 @@ const ChatInterface = () => {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -280, opacity: 0 }}
             transition={{ type: "spring", bounce: 0.3 }}
-            className={`${isMobile ? 'absolute z-50' : 'relative'} h-full`}
+            className={`${isMobile ? 'absolute z-50' : 'relative'} h-full glass-panel`}
           >
             <ChatSidebar
               chats={chats}
@@ -354,10 +351,7 @@ const ChatInterface = () => {
                 setCurrentChatId(id);
                 if (isMobile) setIsSidebarOpen(false);
               }}
-              onNewChat={() => {
-                createNewChat();
-                if (isMobile) setIsSidebarOpen(false);
-              }}
+              onNewChat={createNewChat}
               onSignOut={handleSignOut}
               onDeleteChat={handleDeleteChat}
             />
@@ -367,7 +361,7 @@ const ChatInterface = () => {
 
       <div className="flex-1 flex flex-col">
         {isMobile && (
-          <div className="p-4 border-b">
+          <div className="p-4 border-b glass-panel">
             <Button
               variant="ghost"
               size="icon"
@@ -383,16 +377,11 @@ const ChatInterface = () => {
           animate={{ opacity: 1, y: 0 }}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <div className="p-4">
-            <FileUploadArea 
-              onDrop={handleFileUpload} 
-              isProcessing={isProcessing} 
-            />
-          </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden glass-panel m-4 rounded-xl">
             <ChatMessages messages={messages} />
           </div>
-          <div className="p-4 border-t">
+          
+          <div className="p-4 space-y-4">
             <ChatInput
               value={input}
               onChange={setInput}
@@ -400,6 +389,13 @@ const ChatInterface = () => {
               disabled={isProcessing}
               placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
             />
+            
+            <div className="glass-panel rounded-xl">
+              <FileUploadArea 
+                onDrop={handleFileUpload} 
+                isProcessing={isProcessing} 
+              />
+            </div>
           </div>
         </motion.div>
       </div>

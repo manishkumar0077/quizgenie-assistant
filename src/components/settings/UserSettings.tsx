@@ -142,6 +142,13 @@ export const UserSettings = () => {
     
     setDeleteLoading(true);
     try {
+      const { error: chatsError } = await supabase
+        .from('chats')
+        .delete()
+        .eq('user_id', profile.id);
+
+      if (chatsError) throw chatsError;
+
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -149,9 +156,8 @@ export const UserSettings = () => {
 
       if (profileError) throw profileError;
 
-      const { error: authError } = await supabase.auth.admin.deleteUser(
-        profile.id
-      );
+      const { error: authError } = await supabase.auth
+        .admin.deleteUser(profile.id);
 
       if (authError) throw authError;
 
