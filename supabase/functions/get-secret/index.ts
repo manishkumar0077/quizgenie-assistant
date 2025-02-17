@@ -34,26 +34,17 @@ serve(async (req) => {
       .single()
 
     if (error) {
-      console.error('Error fetching secret:', error)
       return new Response(
         JSON.stringify({ error: 'Failed to fetch secret' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
 
-    if (!data) {
-      return new Response(
-        JSON.stringify({ error: 'Secret not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      )
-    }
-
     return new Response(
-      JSON.stringify({ data: { secret: data.value } }),
+      JSON.stringify({ secret: data.value }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Unexpected error:', error)
     return new Response(
       JSON.stringify({ error: 'An unexpected error occurred' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

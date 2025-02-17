@@ -3,22 +3,17 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/integrations/supabase/client";
 
 async function getGeminiApiKey(): Promise<string> {
-  const { data, error } = await supabase
+  const { data: { secret }, error } = await supabase
     .functions.invoke('get-secret', {
       body: { name: 'GEMINI_API_KEY' }
     });
   
-  if (error) {
+  if (error || !secret) {
     console.error('Error fetching Gemini API key:', error);
     throw new Error('Failed to fetch Gemini API key');
   }
   
-  if (!data?.data?.secret) {
-    console.error('No Gemini API key found');
-    throw new Error('Gemini API key not found');
-  }
-  
-  return data.data.secret;
+  return secret;
 }
 
 let genAI: GoogleGenerativeAI | null = null;
