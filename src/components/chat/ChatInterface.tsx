@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Menu } from "lucide-react";
 import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { QuizCreator } from "../quiz/QuizCreator";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,6 +22,7 @@ const ChatInterface = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showQuizCreator, setShowQuizCreator] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -299,6 +301,13 @@ const ChatInterface = () => {
     }
   };
 
+  const handleQuizCreated = (extractedText: string) => {
+    setMessages(prev => [
+      ...prev,
+      { type: "assistant", content: `Here's the extracted text from your document:\n\n${extractedText}` }
+    ]);
+  };
+
   useEffect(() => {
     const loadChatHistory = async () => {
       if (!userId || !currentChatId) return;
@@ -390,6 +399,16 @@ const ChatInterface = () => {
               placeholder={isProcessing ? "Processing..." : "Ask a question about your study materials..."}
             />
             
+            <div className="flex gap-4">
+              <Button
+                onClick={() => setShowQuizCreator(true)}
+                className="w-full glass-panel hover:bg-purple-500 hover:text-white transition-colors"
+                variant="outline"
+              >
+                Create a Quiz
+              </Button>
+            </div>
+
             <div className="glass-panel rounded-xl">
               <FileUploadArea 
                 onDrop={handleFileUpload} 
@@ -398,6 +417,17 @@ const ChatInterface = () => {
             </div>
           </div>
         </motion.div>
+
+        <AnimatePresence>
+          {showQuizCreator && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <QuizCreator
+                onClose={() => setShowQuizCreator(false)}
+                onQuizCreated={handleQuizCreated}
+              />
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

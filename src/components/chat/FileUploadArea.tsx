@@ -6,13 +6,16 @@ import { motion } from "framer-motion";
 interface FileUploadAreaProps {
   onDrop: (acceptedFiles: File[]) => Promise<void>;
   isProcessing: boolean;
+  acceptedFileTypes?: Record<string, string[]>;
 }
 
-export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) => {
+export const FileUploadArea = ({ 
+  onDrop, 
+  isProcessing, 
+  acceptedFileTypes = { 'image/*': ['.png', '.jpg', '.jpeg'] }
+}: FileUploadAreaProps) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg']
-    },
+    accept: acceptedFileTypes,
     maxFiles: 1,
     multiple: false,
     maxSize: 10485760, // 10MB
@@ -20,9 +23,13 @@ export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) =>
     disabled: isProcessing
   });
 
+  const dropzoneProps = getRootProps();
+  const { ref, ...dropzonePropsWithoutRef } = dropzoneProps;
+
   return (
     <motion.div
-      {...getRootProps()}
+      {...dropzonePropsWithoutRef}
+      ref={ref as any}
       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
         isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -33,8 +40,8 @@ export const FileUploadArea = ({ onDrop, isProcessing }: FileUploadAreaProps) =>
       <Upload className="mx-auto mb-2 text-purple-600" />
       <p className="text-sm text-purple-800 font-medium">
         {isProcessing 
-          ? "Processing image... Please wait."
-          : "Drop an image here, or click to select (Images up to 10MB)"}
+          ? "Processing file... Please wait."
+          : "Drop your file here, or click to select (up to 10MB)"}
       </p>
     </motion.div>
   );
