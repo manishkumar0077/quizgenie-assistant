@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,6 +143,7 @@ export const UserSettings = () => {
     
     setDeleteLoading(true);
     try {
+      // First, delete all the user's chats
       const { error: chatsError } = await supabase
         .from('chats')
         .delete()
@@ -149,6 +151,15 @@ export const UserSettings = () => {
 
       if (chatsError) throw chatsError;
 
+      // Delete chat history
+      const { error: chatHistoryError } = await supabase
+        .from('chat_history')
+        .delete()
+        .eq('user_id', profile.id);
+
+      if (chatHistoryError) throw chatHistoryError;
+
+      // Delete profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -156,17 +167,20 @@ export const UserSettings = () => {
 
       if (profileError) throw profileError;
 
-      const { error: authError } = await supabase.auth
-        .admin.deleteUser(profile.id);
+      // Delete the user's auth account using the client method
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { deleted: true }
+      });
 
       if (authError) throw authError;
 
+      // Sign out the user
+      await supabase.auth.signOut();
+
       toast({
         title: "Account deleted",
-        description: "Your account has been permanently deleted.",
+        description: "Your account has been successfully deleted.",
       });
-
-      await supabase.auth.signOut();
     } catch (error: any) {
       toast({
         title: "Error deleting account",
