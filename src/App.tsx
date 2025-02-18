@@ -14,16 +14,18 @@ function App() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
       setLoading(false);
     });
 
-    // Listen for auth changes
+    // Set up real-time subscription to auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+      
       if (_event === 'SIGNED_OUT') {
         toast({
           title: "Signed out",
@@ -35,10 +37,17 @@ function App() {
           description: "Welcome back!",
         });
       }
-      setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // Refresh session every 10 minutes to prevent expiry
+    const refreshInterval = setInterval(() => {
+      supabase.auth.refreshSession();
+    }, 600000); // 10 minutes
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   if (loading) {
@@ -51,11 +60,11 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route 
           path="/login" 
-          element={!session ? <AuthForm /> : <Navigate to="/chat" />} 
+          element={!session ? <AuthForm /> : <Navigate to="/chat" replace />} 
         />
         <Route 
           path="/chat" 
-          element={session ? <ChatInterface /> : <Navigate to="/login" />} 
+          element={session ? <ChatInterface /> : <Navigate to="/login" replace />} 
         />
       </Routes>
       <Toaster />
