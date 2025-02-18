@@ -83,6 +83,7 @@ export type Database = {
           created_at: string
           document_type: string | null
           file_type: string
+          file_url: string | null
           filename: string
           id: string
           quiz_metadata: Json | null
@@ -95,6 +96,7 @@ export type Database = {
           created_at?: string
           document_type?: string | null
           file_type: string
+          file_url?: string | null
           filename: string
           id?: string
           quiz_metadata?: Json | null
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string
           document_type?: string | null
           file_type?: string
+          file_url?: string | null
           filename?: string
           id?: string
           quiz_metadata?: Json | null
@@ -133,6 +136,27 @@ export type Database = {
           created_at?: string | null
           id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      secrets: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          value?: string
         }
         Relationships: []
       }
