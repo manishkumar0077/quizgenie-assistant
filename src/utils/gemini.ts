@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 let genAI: GoogleGenerativeAI | null = null;
 let apiKeyRetries = 0;
 const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
 
 async function getGeminiApiKey(): Promise<string> {
   try {
@@ -15,7 +16,7 @@ async function getGeminiApiKey(): Promise<string> {
     
     if (error || !secret) {
       console.error('Error fetching Gemini API key:', error);
-      throw new Error('Failed to fetch Gemini API key');
+      throw new Error('Could not fetch Gemini API key. Please check your configuration.');
     }
     
     return secret;
@@ -23,10 +24,10 @@ async function getGeminiApiKey(): Promise<string> {
     console.error('Error getting Gemini API key:', error);
     if (apiKeyRetries < MAX_RETRIES) {
       apiKeyRetries++;
-      await new Promise(resolve => setTimeout(resolve, 1000 * apiKeyRetries));
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * apiKeyRetries));
       return getGeminiApiKey();
     }
-    throw new Error('Failed to get Gemini API key after multiple attempts');
+    throw new Error('Failed to get Gemini API key. Please try again later.');
   }
 }
 
@@ -35,9 +36,16 @@ async function initializeGeminiAI() {
     try {
       const apiKey = await getGeminiApiKey();
       genAI = new GoogleGenerativeAI(apiKey);
+      
+      // Test the connection
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      await model.generateContent("Test connection");
+      
+      console.log('Gemini AI initialized successfully');
     } catch (error) {
       console.error('Error initializing Gemini AI:', error);
-      throw error;
+      genAI = null; // Reset on error
+      throw new Error('Could not initialize Gemini AI. Please check your API key.');
     }
   }
   return genAI;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,57 +142,66 @@ export const UserSettings = () => {
     
     setDeleteLoading(true);
     try {
-      // First, delete all files from storage
+      // First, get user data for cleanup
       const { data: userData } = await supabase.auth.getUser();
-      if (userData.user) {
-        const { error: storageError } = await supabase.storage
-          .from('study_materials')
-          .remove([`${userData.user.id}`]);
+      if (!userData.user) throw new Error("No user found");
 
-        if (storageError) throw storageError;
-      }
+      // Delete all storage files
+      await supabase.storage
+        .from('avatars')
+        .remove([`${userData.user.id}`]);
+        
+      await supabase.storage
+        .from('study_materials')
+        .remove([`${userData.user.id}`]);
 
-      // Delete all the user's chats
-      const { error: chatsError } = await supabase
-        .from('chats')
-        .delete()
-        .eq('user_id', profile.id);
+      // Delete all related data
+      await Promise.all([
+        // Delete all the user's chats
+        supabase
+          .from('chats')
+          .delete()
+          .eq('user_id', profile.id),
 
-      if (chatsError) throw chatsError;
+        // Delete chat history
+        supabase
+          .from('chat_history')
+          .delete()
+          .eq('user_id', profile.id),
 
-      // Delete chat history
-      const { error: chatHistoryError } = await supabase
-        .from('chat_history')
-        .delete()
-        .eq('user_id', profile.id);
+        // Delete documents
+        supabase
+          .from('documents')
+          .delete()
+          .eq('user_id', profile.id),
 
-      if (chatHistoryError) throw chatHistoryError;
+        // Delete profile
+        supabase
+          .from('profiles')
+          .delete()
+          .eq('id', profile.id)
+      ]);
 
-      // Delete profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', profile.id);
+      // Delete the user's auth account using admin API
+      const { error: deleteError } = await supabase.functions.invoke('delete-user', {
+        body: { userId: profile.id }
+      });
 
-      if (profileError) throw profileError;
-
-      // Delete the user account
-      const { error: authError } = await supabase.auth.admin.deleteUser(
-        profile.id
-      );
-
-      if (authError) throw authError;
+      if (deleteError) throw deleteError;
 
       // Sign out the user
       await supabase.auth.signOut();
 
       toast({
         title: "Account deleted",
-        description: "Your account has been successfully deleted. You will be redirected to the login page.",
+        description: "Your account has been permanently deleted. You will be redirected to the login page.",
       });
 
       // Redirect to login page
-      window.location.href = '/login';
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+
     } catch (error: any) {
       toast({
         title: "Error deleting account",
