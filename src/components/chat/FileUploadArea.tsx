@@ -2,7 +2,6 @@
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
-import { HTMLMotionProps } from "framer-motion";
 
 interface FileUploadAreaProps {
   onDrop: (acceptedFiles: File[]) => Promise<void>;
@@ -24,24 +23,16 @@ export const FileUploadArea = ({
     disabled: isProcessing
   });
 
-  const dropzoneProps = getRootProps();
-  const { ref, ...dropzonePropsWithoutRef } = dropzoneProps;
-
-  // Remove all drag-related props that conflict with framer-motion
-  const {
-    onDrag,
-    onDragEnd,
-    onDragEnter,
-    onDragLeave,
-    onDragOver,
-    onDragStart,
-    ...motionSafeProps
-  } = dropzonePropsWithoutRef;
-
   return (
     <motion.div
-      {...motionSafeProps}
-      ref={ref as any}
+      {...getRootProps({
+        onClick: (e) => {
+          if (isProcessing) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      })}
       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
         isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}

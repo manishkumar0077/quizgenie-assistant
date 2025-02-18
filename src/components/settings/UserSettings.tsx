@@ -143,7 +143,17 @@ export const UserSettings = () => {
     
     setDeleteLoading(true);
     try {
-      // First, delete all the user's chats
+      // First, delete all files from storage
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const { error: storageError } = await supabase.storage
+          .from('study_materials')
+          .remove([`${userData.user.id}`]);
+
+        if (storageError) throw storageError;
+      }
+
+      // Delete all the user's chats
       const { error: chatsError } = await supabase
         .from('chats')
         .delete()
@@ -167,10 +177,10 @@ export const UserSettings = () => {
 
       if (profileError) throw profileError;
 
-      // Delete the user's auth account using the client method
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { deleted: true }
-      });
+      // Delete the user account
+      const { error: authError } = await supabase.auth.admin.deleteUser(
+        profile.id
+      );
 
       if (authError) throw authError;
 
@@ -179,8 +189,11 @@ export const UserSettings = () => {
 
       toast({
         title: "Account deleted",
-        description: "Your account has been successfully deleted.",
+        description: "Your account has been successfully deleted. You will be redirected to the login page.",
       });
+
+      // Redirect to login page
+      window.location.href = '/login';
     } catch (error: any) {
       toast({
         title: "Error deleting account",
