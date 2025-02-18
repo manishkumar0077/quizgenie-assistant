@@ -1,12 +1,10 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { supabase } from "@/integrations/supabase/client";
 
 let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
 
 async function initializeGeminiAI() {
   try {
-    // Test the connection
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     await model.generateContent("Test connection");
     console.log("Gemini AI initialized successfully");
@@ -19,7 +17,19 @@ async function initializeGeminiAI() {
 export async function analyzeDocument(content: string) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(content);
+    const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
+    Make your responses engaging and helpful.
+    
+    User message: ${content}
+    
+    Remember to:
+    - Be friendly and conversational
+    - Use natural language
+    - Be helpful and informative
+    - Keep responses concise but complete
+    - Ask follow-up questions when appropriate`;
+
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
