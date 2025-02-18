@@ -27,8 +27,16 @@ export const FileUploadArea = ({
   const dropzoneProps = getRootProps();
   const { ref, ...dropzonePropsWithoutRef } = dropzoneProps;
 
-  // Remove the onDrag prop from dropzoneProps as it conflicts with framer-motion
-  const { onDrag, ...motionSafeProps } = dropzonePropsWithoutRef;
+  // Remove all drag-related props that conflict with framer-motion
+  const {
+    onDrag,
+    onDragEnd,
+    onDragEnter,
+    onDragLeave,
+    onDragOver,
+    onDragStart,
+    ...motionSafeProps
+  } = dropzonePropsWithoutRef;
 
   return (
     <motion.div
