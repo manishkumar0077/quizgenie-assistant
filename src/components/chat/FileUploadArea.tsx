@@ -2,6 +2,10 @@
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
+import * as pdfjs from "pdfjs-dist";
+
+// Initialize PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface FileUploadAreaProps {
   onDrop: (acceptedFiles: File[]) => Promise<void>;
@@ -12,7 +16,10 @@ interface FileUploadAreaProps {
 export const FileUploadArea = ({ 
   onDrop, 
   isProcessing, 
-  acceptedFileTypes = { 'image/*': ['.png', '.jpg', '.jpeg'] }
+  acceptedFileTypes = { 
+    'image/*': ['.png', '.jpg', '.jpeg'],
+    'application/pdf': ['.pdf']
+  }
 }: FileUploadAreaProps) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: acceptedFileTypes,
@@ -44,7 +51,7 @@ export const FileUploadArea = ({
       <p className="text-sm text-purple-800 font-medium">
         {isProcessing 
           ? "Processing file... Please wait."
-          : "Drop your file here, or click to select (up to 10MB)"}
+          : "Drop your PDF or image file here, or click to select (up to 10MB)"}
       </p>
     </motion.div>
   );
