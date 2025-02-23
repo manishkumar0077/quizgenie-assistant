@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -193,9 +194,10 @@ const ChatInterface = () => {
     try {
       const userMessage = input;
       setMessages(prev => [...prev, { type: "user", content: userMessage }]);
-      setInput(""); // Clear input immediately for better UX
+      setInput("");
       setIsProcessing(true);
 
+      // Save user message to chat history
       await supabase.from('chat_history').insert({
         message: userMessage,
         role: 'user',
@@ -203,19 +205,35 @@ const ChatInterface = () => {
         chat_id: currentChatId
       });
 
-      const aiResponse = await analyzeDocument(
-        `You are a helpful and friendly study assistant. Respond in a conversational way to this message: ${userMessage}\n\n` +
-        `Previous conversation context: ${messages.slice(-3).map(m => `${m.type}: ${m.content}`).join('\n')}`
-      );
+      // Get AI response
+      const aiResponse = await analyzeDocument(userMessage);
 
+      // Get related YouTube videos
+      const { data: videosData, error: videosError } = await supabase.functions.invoke('google-services', {
+        body: { 
+          action: 'searchVideos',
+          payload: { query: userMessage }
+        }
+      });
+
+      let fullResponse = aiResponse;
+      
+      if (!videosError && videosData.videos) {
+        fullResponse += "\n\nRelated videos you might find helpful:\n";
+        videosData.videos.forEach((video: any) => {
+          fullResponse += `\n- [${video.snippet.title}](https://www.youtube.com/watch?v=${video.id.videoId})`;
+        });
+      }
+
+      // Save AI response to chat history
       await supabase.from('chat_history').insert({
-        message: aiResponse,
+        message: fullResponse,
         role: 'assistant',
         user_id: userId,
         chat_id: currentChatId
       });
 
-      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
+      setMessages(prev => [...prev, { type: "assistant", content: fullResponse }]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -320,7 +338,7 @@ const ChatInterface = () => {
   }, [userId, currentChatId]);
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-purple-400 via-pink-300 to-blue-300">
+    <div className="h-screen flex bg-white">
       <AnimatePresence>
         {(isSidebarOpen || !isMobile) && (
           <motion.div
@@ -328,7 +346,7 @@ const ChatInterface = () => {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -280, opacity: 0 }}
             transition={{ type: "spring", bounce: 0.3 }}
-            className={`${isMobile ? 'absolute z-50' : 'relative'} h-full glass-panel`}
+            className={`${isMobile ? 'absolute z-50' : 'relative'} h-full bg-gray-50 border-r border-gray-200`}
           >
             <ChatSidebar
               chats={chats}
@@ -344,7 +362,7 @@ const ChatInterface = () => {
 
       <div className="flex-1 flex flex-col">
         {isMobile && (
-          <div className="p-4 border-b glass-panel">
+          <div className="p-4 border-b bg-white">
             <Button
               variant="ghost"
               size="icon"
@@ -360,7 +378,7 @@ const ChatInterface = () => {
           animate={{ opacity: 1, y: 0 }}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 overflow-hidden glass-panel m-4 rounded-xl">
+          <div className="flex-1 overflow-hidden bg-white border border-gray-200 m-4 rounded-xl">
             <ChatMessages messages={messages} />
           </div>
           
@@ -376,14 +394,14 @@ const ChatInterface = () => {
             <div className="flex gap-4">
               <Button
                 onClick={() => setShowQuizCreator(true)}
-                className="w-full glass-panel hover:bg-purple-500 hover:text-white transition-colors"
+                className="w-full bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
                 variant="outline"
               >
                 Create a Quiz
               </Button>
             </div>
 
-            <div className="glass-panel rounded-xl">
+            <div className="bg-white border border-gray-200 rounded-xl">
               <FileUploadArea 
                 onDrop={handleFileUpload} 
                 isProcessing={isProcessing} 

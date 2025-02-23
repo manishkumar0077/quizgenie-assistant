@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
@@ -34,55 +35,18 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-white text-foreground antialiased;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
     font-family: 'Inter', sans-serif;
-    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(240,240,246,1) 100%);
   }
 }
 
 .glass-panel {
-  @apply backdrop-blur-lg bg-white/80 border border-white/60 shadow-lg;
-}
-
-.retro-gradient {
-  @apply bg-gradient-to-br from-white/40 via-gray-100/30 to-gray-50/30;
+  @apply bg-white border border-gray-200 shadow-sm;
 }
 
 .y2k-shadow {
-  filter: drop-shadow(2px 2px 0 rgba(255,255,255,0.8)) 
-          drop-shadow(-2px -2px 0 rgba(0,0,0,0.05));
-}
-
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-.slide-up {
-  animation: slideUp 0.3s ease-out forwards;
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.05));
 }
 
 @keyframes slideUp {
@@ -94,6 +58,10 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out forwards;
 }
 
 .fade-in {
