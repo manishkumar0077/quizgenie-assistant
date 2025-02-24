@@ -1,3 +1,4 @@
+
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
@@ -61,9 +62,10 @@ export const FileUploadArea = ({
     disabled: isProcessing
   });
 
+  const dropzoneProps = getRootProps();
+
   return (
     <motion.div
-      {...getRootProps()}
       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
         isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -72,6 +74,8 @@ export const FileUploadArea = ({
         scale: isDragActive ? 1.02 : 1
       }}
       whileTap={{ scale: 0.99 }}
+      onClick={dropzoneProps.onClick}
+      onKeyDown={dropzoneProps.onKeyDown}
     >
       <input {...getInputProps()} />
       <Upload className="mx-auto mb-2 text-purple-600" />
