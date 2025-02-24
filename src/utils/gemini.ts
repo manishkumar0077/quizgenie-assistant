@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative_ai";
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/integrations/supabase/client";
 
 let genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -20,7 +21,7 @@ export async function analyzeDocument(content: string) {
     const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
     Make your responses engaging and helpful.
     
-    If you need to show code examples, wrap them in triple backticks (```).
+    If you need to show code examples, wrap them in triple backticks (\`\`\`).
     Format your responses with proper spacing and paragraphs.
     
     User message: ${content}
