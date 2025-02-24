@@ -2,10 +2,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/integrations/supabase/client";
 
-let genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+let genAI: GoogleGenerativeAI;
 
 async function initializeGeminiAI() {
   try {
+    const { data, error } = await supabase.functions.invoke('get-secret', {
+      body: { key: 'GEMINI_API_KEY' }
+    });
+    
+    if (error) throw error;
+    
+    genAI = new GoogleGenerativeAI(data.value);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     await model.generateContent("Test connection");
     console.log("Gemini AI initialized successfully");
@@ -17,6 +24,10 @@ async function initializeGeminiAI() {
 
 export async function analyzeDocument(content: string) {
   try {
+    if (!genAI) {
+      await initializeGeminiAI();
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
     Make your responses engaging and helpful.
@@ -92,6 +103,10 @@ async function getYouTubeApiKey() {
 
 export async function generateQuiz(content: string) {
   try {
+    if (!genAI) {
+      await initializeGeminiAI();
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `Based on the following content, generate a quiz with 5 multiple choice questions. Format the response as a JSON array where each question object has the following properties: question, options (array of 4 choices), and correctAnswer (index of correct option). Content: ${content}`;
     
@@ -106,6 +121,10 @@ export async function generateQuiz(content: string) {
 
 export async function performOCR(imageData: string) {
   try {
+    if (!genAI) {
+      await initializeGeminiAI();
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
     
     const prompt = "Extract and return all the text from this image. Format it naturally with proper spacing and line breaks.";
