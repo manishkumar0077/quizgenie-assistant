@@ -62,28 +62,26 @@ export const FileUploadArea = ({
     disabled: isProcessing
   });
 
-  const dropzoneProps = getRootProps();
-
   return (
-    <motion.div
-      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
-        isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
-      } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-      initial={false}
-      animate={{
-        scale: isDragActive ? 1.02 : 1
-      }}
-      whileTap={{ scale: 0.99 }}
-      onClick={dropzoneProps.onClick}
-      onKeyDown={dropzoneProps.onKeyDown}
-    >
-      <input {...getInputProps()} />
-      <Upload className="mx-auto mb-2 text-purple-600" />
-      <p className="text-sm text-purple-800 font-medium">
-        {isProcessing 
-          ? "Processing file... Please wait."
-          : "Drop your PDF or image here, or click to select (up to 10MB)"}
-      </p>
-    </motion.div>
+    <div {...getRootProps()}>
+      <motion.div
+        className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
+          isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
+        } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+        initial={false}
+        animate={{
+          scale: isDragActive ? 1.02 : 1
+        }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <input {...getInputProps()} />
+        <Upload className="mx-auto mb-2 text-purple-600" />
+        <p className="text-sm text-purple-800 font-medium">
+          {isProcessing 
+            ? "Processing file... Please wait."
+            : "Drop your PDF or image here, or click to select (up to 10MB)"}
+        </p>
+      </motion.div>
+    </div>
   );
 };
