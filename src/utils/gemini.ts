@@ -22,6 +22,22 @@ async function initializeGeminiAI() {
   }
 }
 
+async function generateYouTubeQuery(content: string) {
+  if (!genAI) {
+    await initializeGeminiAI();
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const prompt = `Given this question or topic: "${content}", generate a short, specific YouTube search query that would find educational videos explaining this concept. For example:
+  - If the question is "what's 2+2?", return "basic addition tutorial for beginners"
+  - If the topic is "photosynthesis", return "photosynthesis process explained simply"
+  Keep it under 5 words and focused on educational content.`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  return response.text().trim();
+}
+
 export async function analyzeDocument(content: string) {
   try {
     if (!genAI) {
@@ -48,8 +64,11 @@ export async function analyzeDocument(content: string) {
     const result = await model.generateContent(prompt);
     const response = await result.response;
 
-    // Get YouTube suggestions
-    const suggestions = await fetchYouTubeSuggestions(content);
+    // Get tailored YouTube search query
+    const searchQuery = await generateYouTubeQuery(content);
+    
+    // Get YouTube suggestions with the improved query
+    const suggestions = await fetchYouTubeSuggestions(searchQuery);
     
     return {
       answer: response.text(),
@@ -66,8 +85,8 @@ async function fetchYouTubeSuggestions(query: string) {
   try {
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
-        query
-      )}&type=video&maxResults=4&key=${youtubeApiKey}`
+        query + " educational tutorial"
+      )}&type=video&maxResults=4&relevanceLanguage=en&videoEmbeddable=true&key=${youtubeApiKey}`
     );
 
     if (!response.ok) {

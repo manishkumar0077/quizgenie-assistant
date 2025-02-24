@@ -20,23 +20,25 @@ interface YouTubeSuggestionsProps {
 }
 
 export const YouTubeSuggestions = ({ suggestions, isOpen, onClose }: YouTubeSuggestionsProps) => {
+  const openVideo = (videoId: string) => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Related Videos</DialogTitle>
+          <DialogTitle>Related Educational Videos</DialogTitle>
           <DialogDescription>
-            Here are some videos that might help you understand this topic better
+            Click on a video to watch it on YouTube
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-2">
           {suggestions.map((video) => (
-            <a
+            <button
               key={video.video_id}
-              href={`https://www.youtube.com/watch?v=${video.video_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-2 rounded-lg hover:bg-white/10 transition-colors"
+              onClick={() => openVideo(video.video_id)}
+              className="text-left block p-2 rounded-lg hover:bg-white/10 transition-colors"
             >
               <div className="space-y-2">
                 <img
@@ -53,7 +55,7 @@ export const YouTubeSuggestions = ({ suggestions, isOpen, onClose }: YouTubeSugg
                   Watch on YouTube
                 </div>
               </div>
-            </a>
+            </button>
           ))}
         </div>
       </DialogContent>
