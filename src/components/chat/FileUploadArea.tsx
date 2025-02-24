@@ -68,6 +68,10 @@ export const FileUploadArea = ({
       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
         isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+      initial={false}
+      animate={{
+        scale: isDragActive ? 1.02 : 1
+      }}
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
     >

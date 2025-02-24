@@ -25,6 +25,7 @@ const ChatInterface = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showQuizCreator, setShowQuizCreator] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -205,17 +206,23 @@ const ChatInterface = () => {
       });
 
       const aiResponse = await analyzeDocument(userMessage);
-
+      
       await supabase.from('chat_history').insert({
-        message: aiResponse,
+        message: JSON.stringify(aiResponse),
         role: 'assistant',
         user_id: userId,
         chat_id: currentChatId
       });
 
-      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
+      setMessages(prev => [...prev, { 
+        type: "assistant", 
+        content: aiResponse 
+      }]);
 
-      await getYouTubeSuggestions(userMessage);
+      setSuggestions(aiResponse.suggestions || []);
+      if (aiResponse.suggestions?.length > 0) {
+        setShowSuggestions(true);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -361,11 +368,6 @@ const ChatInterface = () => {
               <div className="flex-1 overflow-hidden">
                 <ChatMessages messages={messages} />
               </div>
-              {suggestions.length > 0 && (
-                <div className="w-80 border-l border-gray-200 p-4 overflow-y-auto">
-                  <YouTubeSuggestions suggestions={suggestions} />
-                </div>
-              )}
             </div>
           </div>
           
@@ -411,6 +413,12 @@ const ChatInterface = () => {
             </div>
           )}
         </AnimatePresence>
+
+        <YouTubeSuggestions 
+          suggestions={suggestions} 
+          isOpen={showSuggestions}
+          onClose={() => setShowSuggestions(false)}
+        />
       </div>
     </div>
   );
