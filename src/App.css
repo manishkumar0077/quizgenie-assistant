@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -12,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(200, 200, 200, 0.6));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(200, 200, 200, 0.6));
 }
 
 @keyframes logo-spin {
@@ -35,8 +36,29 @@
 
 .card {
   padding: 2em;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 8px 32px 0 rgba(200, 200, 200, 0.17);
 }
 
 .read-the-docs {
-  color: #888;
+  color: #666;
+}
+
+.y2k-container {
+  background: linear-gradient(165deg, rgba(255,255,255,1) 0%, rgba(240,240,246,1) 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.y2k-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+  pointer-events: none;
 }
