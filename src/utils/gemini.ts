@@ -6,6 +6,7 @@ let genAI: GoogleGenerativeAI;
 
 async function initializeGeminiAI() {
   try {
+    // Fetch API key from Supabase secrets
     const { data, error } = await supabase.functions.invoke('get-secret', {
       body: { key: 'GEMINI_API_KEY' }
     });
@@ -22,22 +23,6 @@ async function initializeGeminiAI() {
   }
 }
 
-async function generateYouTubeQuery(content: string) {
-  if (!genAI) {
-    await initializeGeminiAI();
-  }
-
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  const prompt = `Given this question or topic: "${content}", generate a short, specific YouTube search query that would find educational videos explaining this concept. For example:
-  - If the question is "what's 2+2?", return "basic addition tutorial for beginners"
-  - If the topic is "photosynthesis", return "photosynthesis process explained simply"
-  Keep it under 5 words and focused on educational content.`;
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text().trim();
-}
-
 export async function analyzeDocument(content: string) {
   try {
     if (!genAI) {
@@ -45,78 +30,12 @@ export async function analyzeDocument(content: string) {
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
-    Make your responses engaging and helpful.
-    
-    If you need to show code examples, wrap them in triple backticks (\`\`\`).
-    Format your responses with proper spacing and paragraphs.
-    
-    User message: ${content}
-    
-    Remember to:
-    - Be friendly and conversational
-    - Use natural language
-    - Be helpful and informative
-    - Keep responses concise but complete
-    - Format code examples in code blocks
-    - Ask follow-up questions when appropriate`;
-
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent(content);
     const response = await result.response;
-
-    // Get tailored YouTube search query
-    const searchQuery = await generateYouTubeQuery(content);
-    
-    // Get YouTube suggestions with the improved query
-    const suggestions = await fetchYouTubeSuggestions(searchQuery);
-    
-    return {
-      answer: response.text(),
-      suggestions
-    };
+    return response.text();
   } catch (error) {
     console.error("Error analyzing document:", error);
     throw error;
-  }
-}
-
-async function fetchYouTubeSuggestions(query: string) {
-  const youtubeApiKey = await getYouTubeApiKey();
-  try {
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
-        query + " educational tutorial"
-      )}&type=video&maxResults=4&relevanceLanguage=en&videoEmbeddable=true&key=${youtubeApiKey}`
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch YouTube videos");
-    }
-
-    const data = await response.json();
-    return data.items.map((item: any) => ({
-      title: item.snippet.title,
-      video_id: item.id.videoId,
-      thumbnail_url: item.snippet.thumbnails.medium.url,
-      description: item.snippet.description,
-    }));
-  } catch (error) {
-    console.error("Error fetching YouTube suggestions:", error);
-    return [];
-  }
-}
-
-async function getYouTubeApiKey() {
-  try {
-    const { data, error } = await supabase.functions.invoke('get-secret', {
-      body: { key: 'YOUTUBE_API_SECRET' }
-    });
-    
-    if (error) throw error;
-    return data.value;
-  } catch (error) {
-    console.error('Error fetching YouTube API key:', error);
-    throw new Error('Could not fetch YouTube API key');
   }
 }
 
