@@ -31,10 +31,43 @@ export async function analyzeDocument(content: string) {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+
+    // Get YouTube suggestions
+    const suggestions = await fetchYouTubeSuggestions(content);
+    
+    return {
+      answer: response.text(),
+      suggestions
+    };
   } catch (error) {
     console.error("Error analyzing document:", error);
     throw error;
+  }
+}
+
+async function fetchYouTubeSuggestions(query: string) {
+  const YOUTUBE_API_KEY = "AIzaSyBnFz5UggaDaRRWF-G0On6QqE60bQFVcLY";
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
+        query
+      )}&type=video&maxResults=4&key=${YOUTUBE_API_KEY}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch YouTube videos");
+    }
+
+    const data = await response.json();
+    return data.items.map((item: any) => ({
+      title: item.snippet.title,
+      video_id: item.id.videoId,
+      thumbnail_url: item.snippet.thumbnails.medium.url,
+      description: item.snippet.description,
+    }));
+  } catch (error) {
+    console.error("Error fetching YouTube suggestions:", error);
+    return [];
   }
 }
 
