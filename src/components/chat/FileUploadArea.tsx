@@ -1,4 +1,3 @@
-
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
@@ -72,7 +71,6 @@ export const FileUploadArea = ({
       animate={{
         scale: isDragActive ? 1.02 : 1
       }}
-      whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
     >
       <input {...getInputProps()} />

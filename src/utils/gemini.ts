@@ -1,7 +1,7 @@
+import { GoogleGenerativeAI } from "@google/generative_ai";
+import { supabase } from "@/integrations/supabase/client";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
+let genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 async function initializeGeminiAI() {
   try {
@@ -20,6 +20,9 @@ export async function analyzeDocument(content: string) {
     const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
     Make your responses engaging and helpful.
     
+    If you need to show code examples, wrap them in triple backticks (```).
+    Format your responses with proper spacing and paragraphs.
+    
     User message: ${content}
     
     Remember to:
@@ -27,6 +30,7 @@ export async function analyzeDocument(content: string) {
     - Use natural language
     - Be helpful and informative
     - Keep responses concise but complete
+    - Format code examples in code blocks
     - Ask follow-up questions when appropriate`;
 
     const result = await model.generateContent(prompt);
@@ -46,12 +50,12 @@ export async function analyzeDocument(content: string) {
 }
 
 async function fetchYouTubeSuggestions(query: string) {
-  const YOUTUBE_API_KEY = "AIzaSyBnFz5UggaDaRRWF-G0On6QqE60bQFVcLY";
+  const youtubeApiKey = await getYouTubeApiKey();
   try {
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
         query
-      )}&type=video&maxResults=4&key=${YOUTUBE_API_KEY}`
+      )}&type=video&maxResults=4&key=${youtubeApiKey}`
     );
 
     if (!response.ok) {
@@ -68,6 +72,20 @@ async function fetchYouTubeSuggestions(query: string) {
   } catch (error) {
     console.error("Error fetching YouTube suggestions:", error);
     return [];
+  }
+}
+
+async function getYouTubeApiKey() {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-secret', {
+      body: { key: 'YOUTUBE_API_SECRET' }
+    });
+    
+    if (error) throw error;
+    return data.value;
+  } catch (error) {
+    console.error('Error fetching YouTube API key:', error);
+    throw new Error('Could not fetch YouTube API key');
   }
 }
 
