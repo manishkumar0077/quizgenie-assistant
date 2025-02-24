@@ -23,16 +23,53 @@ async function initializeGeminiAI() {
   }
 }
 
-export async function analyzeDocument(content: string) {
+async function generateYouTubeQuery(content: string) {
+  if (!genAI) {
+    await initializeGeminiAI();
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const prompt = `Given this question or topic: "${content}", generate a short, specific YouTube search query that would find educational videos explaining this concept.`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  return response.text().trim();
+}
+
+export async function analyzeDocument(content: string): Promise<{
+  answer: string;
+  suggestions: Array<{
+    title: string;
+    video_id: string;
+    thumbnail_url: string;
+    description: string;
+  }>;
+}> {
   try {
     if (!genAI) {
       await initializeGeminiAI();
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(content);
+    const prompt = `You are a friendly and helpful AI study assistant. Analyze and respond to this content: ${content}`;
+
+    const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+    
+    // Get tailored YouTube search query
+    const searchQuery = await generateYouTubeQuery(content);
+    
+    // Use Supabase edge function to fetch YouTube suggestions
+    const { data: suggestions, error } = await supabase.functions.invoke('youtube-suggest', {
+      body: { query: searchQuery }
+    });
+
+    if (error) throw error;
+
+    return {
+      answer: response.text(),
+      suggestions: suggestions.videos || [],
+    };
   } catch (error) {
     console.error("Error analyzing document:", error);
     throw error;
