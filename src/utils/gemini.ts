@@ -1,19 +1,10 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { supabase } from "@/integrations/supabase/client";
 
-let genAI: GoogleGenerativeAI;
+let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
 
 async function initializeGeminiAI() {
   try {
-    // Fetch API key from Supabase secrets
-    const { data, error } = await supabase.functions.invoke('get-secret', {
-      body: { key: 'GEMINI_API_KEY' }
-    });
-    
-    if (error) throw error;
-    
-    genAI = new GoogleGenerativeAI(data.value);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     await model.generateContent("Test connection");
     console.log("Gemini AI initialized successfully");
@@ -23,53 +14,24 @@ async function initializeGeminiAI() {
   }
 }
 
-async function generateYouTubeQuery(content: string) {
-  if (!genAI) {
-    await initializeGeminiAI();
-  }
-
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  const prompt = `Given this question or topic: "${content}", generate a short, specific YouTube search query that would find educational videos explaining this concept.`;
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text().trim();
-}
-
-export async function analyzeDocument(content: string): Promise<{
-  answer: string;
-  suggestions: Array<{
-    title: string;
-    video_id: string;
-    thumbnail_url: string;
-    description: string;
-  }>;
-}> {
+export async function analyzeDocument(content: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const prompt = `You are a friendly and helpful AI study assistant. Analyze and respond to this content: ${content}`;
+    const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
+    Make your responses engaging and helpful.
+    
+    User message: ${content}
+    
+    Remember to:
+    - Be friendly and conversational
+    - Use natural language
+    - Be helpful and informative
+    - Keep responses concise but complete
+    - Ask follow-up questions when appropriate`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    
-    // Get tailored YouTube search query
-    const searchQuery = await generateYouTubeQuery(content);
-    
-    // Use Supabase edge function to fetch YouTube suggestions
-    const { data: suggestions, error } = await supabase.functions.invoke('youtube-suggest', {
-      body: { query: searchQuery }
-    });
-
-    if (error) throw error;
-
-    return {
-      answer: response.text(),
-      suggestions: suggestions.videos || [],
-    };
+    return response.text();
   } catch (error) {
     console.error("Error analyzing document:", error);
     throw error;
@@ -78,10 +40,6 @@ export async function analyzeDocument(content: string): Promise<{
 
 export async function generateQuiz(content: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `Based on the following content, generate a quiz with 5 multiple choice questions. Format the response as a JSON array where each question object has the following properties: question, options (array of 4 choices), and correctAnswer (index of correct option). Content: ${content}`;
     
@@ -96,10 +54,6 @@ export async function generateQuiz(content: string) {
 
 export async function performOCR(imageData: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
     
     const prompt = "Extract and return all the text from this image. Format it naturally with proper spacing and line breaks.";

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { analyzeDocument } from "@/utils/gemini";
+import { analyzeDocument, generateQuiz, performOCR } from "@/utils/gemini";
 import { Chat, Message } from "@/types/chat";
 import { ChatSidebar } from "./ChatSidebar";
 import { FileUploadArea } from "./FileUploadArea";
@@ -12,7 +12,6 @@ import { Menu } from "lucide-react";
 import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { QuizCreator } from "../quiz/QuizCreator";
-import { YouTubeSuggestions } from "./YouTubeSuggestions";
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -24,8 +23,6 @@ const ChatInterface = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showQuizCreator, setShowQuizCreator] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -103,89 +100,90 @@ const ChatInterface = () => {
     setIsProcessing(true);
     try {
       const file = acceptedFiles[0];
-      
-      const { data: driveData, error: driveError } = await supabase.functions.invoke('google-drive', {
-        body: { file, userId }
-      });
-
-      if (driveError) throw driveError;
-
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('study_files')
+        .from('study_materials')
         .upload(`${userId}/${fileName}`, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('study_files')
+        .from('study_materials')
         .getPublicUrl(`${userId}/${fileName}`);
 
-      if (file.type.startsWith('image/')) {
+      const base64Data = await new Promise<string>((resolve) => {
         const reader = new FileReader();
-        reader.onload = async (e) => {
-          const base64Data = (e.target?.result as string).split(',')[1];
-          
-          const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-            method: 'POST',
-            headers: {
-              'apikey': process.env.OCR_SPACE_API_KEY || '',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              base64Image: `data:${file.type};base64,${base64Data}`,
-              language: 'eng',
-            }),
-          });
-
-          const ocrData = await ocrResponse.json();
-          if (ocrData.ParsedResults && ocrData.ParsedResults.length > 0) {
-            const extractedText = ocrData.ParsedResults[0].ParsedText;
-            setMessages(prev => [
-              ...prev,
-              { type: "assistant", content: `I've analyzed your image and here's what I found:\n\n${extractedText}` }
-            ]);
-
-            await getYouTubeSuggestions(extractedText);
-          }
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          resolve(base64.split(',')[1]); // Remove data URL prefix
         };
         reader.readAsDataURL(file);
+      });
+
+      const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        body: new FormData(),
+      });
+
+      const ocrData = await ocrResponse.json();
+
+      if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
+        throw new Error('No text found in the image');
       }
 
+      const extractedText = ocrData.ParsedResults[0].ParsedText;
+
+      const { data: documentData, error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          filename: file.name,
+          file_type: file.type,
+          content: extractedText,
+          file_url: publicUrl,
+          document_type: 'image',
+          user_id: userId
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      setMessages(prev => [
+        ...prev,
+        { 
+          type: "assistant", 
+          content: `I've analyzed your image and here's what I found:\n\n${extractedText}`
+        }
+      ]);
+
+      await supabase.from('chat_history').insert({
+        message: extractedText,
+        role: 'assistant',
+        user_id: userId,
+        chat_id: currentChatId
+      });
+
       toast({
-        title: "File uploaded successfully",
-        description: "The file has been uploaded to Google Drive and our storage.",
+        title: "Image processed successfully",
+        description: "The text has been extracted and added to the chat.",
       });
     } catch (error: any) {
       toast({
-        title: "Upload failed",
+        title: "Processing failed",
         description: error.message,
         variant: "destructive",
       });
+      setMessages(prev => [
+        ...prev,
+        { 
+          type: "assistant", 
+          content: "I apologize, but I encountered an error processing your image. Please try again with a clearer image."
+        }
+      ]);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const getYouTubeSuggestions = async (text: string) => {
-    if (!currentChatId || !userId) return;
-
-    try {
-      const { data, error } = await supabase.functions.invoke('youtube-suggest', {
-        body: { query: text, userId, documentId: currentChatId }
-      });
-
-      if (error) throw error;
-      
-      setSuggestions(data.videos);
-    } catch (error: any) {
-      toast({
-        title: "Failed to get video suggestions",
-        description: error.message,
-        variant: "destructive",
-      });
     }
   };
 
@@ -195,7 +193,7 @@ const ChatInterface = () => {
     try {
       const userMessage = input;
       setMessages(prev => [...prev, { type: "user", content: userMessage }]);
-      setInput("");
+      setInput(""); // Clear input immediately for better UX
       setIsProcessing(true);
 
       await supabase.from('chat_history').insert({
@@ -205,30 +203,29 @@ const ChatInterface = () => {
         chat_id: currentChatId
       });
 
-      const aiResponse = await analyzeDocument(userMessage);
-      
+      const aiResponse = await analyzeDocument(
+        `You are a helpful and friendly study assistant. Respond in a conversational way to this message: ${userMessage}\n\n` +
+        `Previous conversation context: ${messages.slice(-3).map(m => `${m.type}: ${m.content}`).join('\n')}`
+      );
+
       await supabase.from('chat_history').insert({
-        message: JSON.stringify(aiResponse),
+        message: aiResponse,
         role: 'assistant',
         user_id: userId,
         chat_id: currentChatId
       });
 
-      setMessages(prev => [...prev, { 
-        type: "assistant", 
-        content: aiResponse 
-      }]);
-
-      setSuggestions(aiResponse.suggestions || []);
-      if (aiResponse.suggestions?.length > 0) {
-        setShowSuggestions(true);
-      }
+      setMessages(prev => [...prev, { type: "assistant", content: aiResponse }]);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      setMessages(prev => [...prev, { 
+        type: "assistant", 
+        content: "I apologize, but I encountered an error processing your request. Please try again." 
+      }]);
     } finally {
       setIsProcessing(false);
     }
@@ -353,7 +350,7 @@ const ChatInterface = () => {
               size="icon"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             >
-              <Menu className="h-6 w-4" />
+              <Menu className="h-6 w-6" />
             </Button>
           </div>
         )}
@@ -364,11 +361,7 @@ const ChatInterface = () => {
           className="flex-1 flex flex-col overflow-hidden"
         >
           <div className="flex-1 overflow-hidden glass-panel m-4 rounded-xl">
-            <div className="h-full flex">
-              <div className="flex-1 overflow-hidden">
-                <ChatMessages messages={messages} />
-              </div>
-            </div>
+            <ChatMessages messages={messages} />
           </div>
           
           <div className="p-4 space-y-4">
@@ -394,10 +387,6 @@ const ChatInterface = () => {
               <FileUploadArea 
                 onDrop={handleFileUpload} 
                 isProcessing={isProcessing} 
-                acceptedFileTypes={{
-                  'image/*': ['.png', '.jpg', '.jpeg'],
-                  'application/pdf': ['.pdf']
-                }}
               />
             </div>
           </div>
@@ -413,12 +402,6 @@ const ChatInterface = () => {
             </div>
           )}
         </AnimatePresence>
-
-        <YouTubeSuggestions 
-          suggestions={suggestions} 
-          isOpen={showSuggestions}
-          onClose={() => setShowSuggestions(false)}
-        />
       </div>
     </div>
   );

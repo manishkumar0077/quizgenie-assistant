@@ -160,39 +160,6 @@ export type Database = {
         }
         Relationships: []
       }
-      study_files: {
-        Row: {
-          created_at: string | null
-          extracted_text: string | null
-          file_path: string
-          file_type: string
-          filename: string
-          google_drive_id: string | null
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          extracted_text?: string | null
-          file_path: string
-          file_type: string
-          filename: string
-          google_drive_id?: string | null
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          extracted_text?: string | null
-          file_path?: string
-          file_type?: string
-          filename?: string
-          google_drive_id?: string | null
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       user_documents: {
         Row: {
           created_at: string | null
@@ -216,41 +183,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      youtube_suggestions: {
-        Row: {
-          chat_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          title: string
-          video_id: string
-        }
-        Insert: {
-          chat_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          title: string
-          video_id: string
-        }
-        Update: {
-          chat_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          title?: string
-          video_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "youtube_suggestions_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

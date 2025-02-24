@@ -8,13 +8,5 @@ export interface Chat {
 
 export interface Message {
   type: string;
-  content: string | {
-    answer: string;
-    suggestions: Array<{
-      title: string;
-      video_id: string;
-      thumbnail_url: string;
-      description: string;
-    }>;
-  };
+  content: string;
 }

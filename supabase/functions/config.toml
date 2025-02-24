@@ -1,8 +1,0 @@
-
-project_id = "ojnosetdjpkarzttonvi"
-
-[google-drive]
-verify_jwt = true
-
-[youtube-suggest]
-verify_jwt = true
