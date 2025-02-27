@@ -1,7 +1,9 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
+const API_KEY = "AIzaSyAKn1-BKiKDMqRS7-WYChL_5SxpR8_iqxs"; // Hardcoded API key for testing
+
+let genAI = new GoogleGenerativeAI(API_KEY);
 
 async function initializeGeminiAI() {
   try {
@@ -66,3 +68,6 @@ export async function performOCR(imageData: string) {
     throw error;
   }
 }
+
+// Export the initializeGeminiAI function
+export { initializeGeminiAI };
