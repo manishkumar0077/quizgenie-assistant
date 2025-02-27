@@ -7,7 +7,6 @@ import ChatInterface from "./components/chat/ChatInterface";
 import Landing from "./pages/Landing";
 import { Toaster } from "./components/ui/toaster";
 import { useToast } from "./hooks/use-toast";
-import { initializeGeminiAI } from "./utils/gemini";
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -15,16 +14,6 @@ function App() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Initialize Gemini AI
-    initializeGeminiAI().catch(error => {
-      console.error("Failed to initialize Gemini AI:", error);
-      toast({
-        title: "API Connection Error",
-        description: "Could not connect to the Gemini AI API. Some features may not work.",
-        variant: "destructive"
-      });
-    });
-
     // Initial session check
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);

@@ -1,18 +1,10 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Get API key from environment variables with a fallback for development
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-
-let genAI: GoogleGenerativeAI;
+let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
 
 async function initializeGeminiAI() {
   try {
-    if (!API_KEY) {
-      throw new Error("Gemini API key is not set. Please set the VITE_GEMINI_API_KEY environment variable.");
-    }
-    
-    genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     await model.generateContent("Test connection");
     console.log("Gemini AI initialized successfully");
@@ -24,10 +16,6 @@ async function initializeGeminiAI() {
 
 export async function analyzeDocument(content: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-    
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `You are a friendly and helpful AI study assistant. Respond in a natural, conversational way like ChatGPT. 
     Make your responses engaging and helpful.
@@ -52,10 +40,6 @@ export async function analyzeDocument(content: string) {
 
 export async function generateQuiz(content: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-    
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `Based on the following content, generate a quiz with 5 multiple choice questions. Format the response as a JSON array where each question object has the following properties: question, options (array of 4 choices), and correctAnswer (index of correct option). Content: ${content}`;
     
@@ -70,10 +54,6 @@ export async function generateQuiz(content: string) {
 
 export async function performOCR(imageData: string) {
   try {
-    if (!genAI) {
-      await initializeGeminiAI();
-    }
-    
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
     
     const prompt = "Extract and return all the text from this image. Format it naturally with proper spacing and line breaks.";
@@ -86,6 +66,3 @@ export async function performOCR(imageData: string) {
     throw error;
   }
 }
-
-// Export the initializeGeminiAI function
-export { initializeGeminiAI };
