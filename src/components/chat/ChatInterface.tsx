@@ -194,6 +194,7 @@ const ChatInterface = () => {
       const userMessage = input;
       setMessages(prev => [...prev, { type: "user", content: userMessage }]);
       setInput(""); // Clear input immediately for better UX
+      setIsProcessing(true);
 
       await supabase.from('chat_history').insert({
         message: userMessage,
@@ -202,38 +203,10 @@ const ChatInterface = () => {
         chat_id: currentChatId
       });
 
-      setIsProcessing(true);
-
-      const { data: chatData } = await supabase
-        .from('chats')
-        .select('document_id')
-        .eq('id', currentChatId)
-        .single();
-
-      let aiResponse = "";
-
-      if (chatData?.document_id) {
-        const { data: documentData } = await supabase
-          .from('documents')
-          .select('content, analyzed_content')
-          .eq('id', chatData.document_id)
-          .single();
-
-        if (documentData) {
-          aiResponse = await analyzeDocument(
-            `Context: ${documentData.analyzed_content}\n\n` +
-            `Previous conversation: ${messages.map(m => `${m.type}: ${m.content}`).join('\n')}\n\n` +
-            `User question: ${userMessage}\n\n` +
-            `Provide a helpful, conversational response based on the context and previous conversation. ` +
-            `If the question is not related to the document, politely remind the user about the document's topic.`
-          );
-        }
-      } else {
-        aiResponse = await analyzeDocument(
-          `You are a helpful study assistant. The user asks: ${userMessage}\n\n` +
-          `If they haven't uploaded a document yet, remind them they can do so to get more specific help.`
-        );
-      }
+      const aiResponse = await analyzeDocument(
+        `You are a helpful and friendly study assistant. Respond in a conversational way to this message: ${userMessage}\n\n` +
+        `Previous conversation context: ${messages.slice(-3).map(m => `${m.type}: ${m.content}`).join('\n')}`
+      );
 
       await supabase.from('chat_history').insert({
         message: aiResponse,
@@ -282,15 +255,19 @@ const ChatInterface = () => {
         const remainingChats = chats.filter(chat => chat.id !== chatId);
         if (remainingChats.length > 0) {
           setCurrentChatId(remainingChats[0].id);
+          setMessages([]);
         } else {
           setCurrentChatId(null);
-          setMessages([]);
+          setMessages([{ 
+            type: "assistant", 
+            content: "Hi! Welcome to Studify. I'm your AI study assistant. You can upload study materials like images or text files, and I'll help you understand them better. Just drag and drop a file to get started!" 
+          }]);
         }
       }
 
       toast({
         title: "Chat deleted",
-        description: "The chat has been deleted successfully.",
+        description: "The chat history has been deleted successfully.",
       });
     } catch (error: any) {
       toast({
@@ -356,10 +333,7 @@ const ChatInterface = () => {
             <ChatSidebar
               chats={chats}
               currentChatId={currentChatId}
-              onChatSelect={(id) => {
-                setCurrentChatId(id);
-                if (isMobile) setIsSidebarOpen(false);
-              }}
+              onChatSelect={setCurrentChatId}
               onNewChat={createNewChat}
               onSignOut={handleSignOut}
               onDeleteChat={handleDeleteChat}
