@@ -1,7 +1,9 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-let genAI = new GoogleGenerativeAI("AIzaSyC2P9w5Q6FoGO9Qfp75UuamM_Wv_Jw4IwU");
+// Using the provided API key for testing purposes
+// NOTE: For production, consider using environment variables or a secure backend
+let genAI = new GoogleGenerativeAI("AIzaSyCn0IOQcR1p-9kIBUvoBbXjTrGPylrB_AE");
 
 async function initializeGeminiAI() {
   try {
