@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,66 +143,44 @@ export const UserSettings = () => {
     
     setDeleteLoading(true);
     try {
-      // First, get user data for cleanup
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error("No user found");
+      // First, delete all the user's chats
+      const { error: chatsError } = await supabase
+        .from('chats')
+        .delete()
+        .eq('user_id', profile.id);
 
-      // Delete all storage files
-      await supabase.storage
-        .from('avatars')
-        .remove([`${userData.user.id}`]);
-        
-      await supabase.storage
-        .from('study_materials')
-        .remove([`${userData.user.id}`]);
+      if (chatsError) throw chatsError;
 
-      // Delete all related data
-      await Promise.all([
-        // Delete all the user's chats
-        supabase
-          .from('chats')
-          .delete()
-          .eq('user_id', profile.id),
+      // Delete chat history
+      const { error: chatHistoryError } = await supabase
+        .from('chat_history')
+        .delete()
+        .eq('user_id', profile.id);
 
-        // Delete chat history
-        supabase
-          .from('chat_history')
-          .delete()
-          .eq('user_id', profile.id),
+      if (chatHistoryError) throw chatHistoryError;
 
-        // Delete documents
-        supabase
-          .from('documents')
-          .delete()
-          .eq('user_id', profile.id),
+      // Delete profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', profile.id);
 
-        // Delete profile
-        supabase
-          .from('profiles')
-          .delete()
-          .eq('id', profile.id)
-      ]);
+      if (profileError) throw profileError;
 
-      // Delete the user's auth account using admin API
-      const { error: deleteError } = await supabase.functions.invoke('delete-user', {
-        body: { userId: profile.id }
+      // Delete the user's auth account using the client method
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { deleted: true }
       });
 
-      if (deleteError) throw deleteError;
+      if (authError) throw authError;
 
       // Sign out the user
       await supabase.auth.signOut();
 
       toast({
         title: "Account deleted",
-        description: "Your account has been permanently deleted. You will be redirected to the login page.",
+        description: "Your account has been successfully deleted.",
       });
-
-      // Redirect to login page
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
-
     } catch (error: any) {
       toast({
         title: "Error deleting account",

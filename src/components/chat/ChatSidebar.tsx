@@ -1,19 +1,27 @@
 
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { 
+  LogOut, 
+  MessageSquare, 
+  Plus, 
+  Settings, 
+  Trash2 
+} from "lucide-react";
 import { Chat } from "@/types/chat";
-import { LogOut, Plus, Trash2, X } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { motion } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { UserSettings } from "../settings/UserSettings";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 interface ChatSidebarProps {
   chats: Chat[];
   currentChatId: string | null;
-  onChatSelect: (id: string) => void;
+  onChatSelect: (chatId: string) => void;
   onNewChat: () => void;
   onSignOut: () => void;
-  onDeleteChat: (id: string) => void;
+  onDeleteChat?: (chatId: string) => void;
 }
 
 export const ChatSidebar = ({
@@ -24,55 +32,118 @@ export const ChatSidebar = ({
   onSignOut,
   onDeleteChat,
 }: ChatSidebarProps) => {
-  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // If no profile exists, create one
+      if (!data) {
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([{ id: user.id }])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        setProfile(newProfile);
+      } else {
+        setProfile(data);
+      }
+    } catch (error: any) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   return (
-    <div className="w-[280px] h-full flex flex-col">
-      <div className="p-4 flex justify-between items-center">
-        <Button onClick={onNewChat} variant="outline" className="w-full">
-          <Plus className="mr-2 h-4 w-4" /> New Chat
-        </Button>
+    <div className="w-64 border-r bg-secondary/50 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <Avatar>
+            <AvatarImage src={profile?.avatar_url} />
+            <AvatarFallback>
+              {profile?.full_name?.charAt(0)?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-semibold text-sm truncate">
+            {profile?.full_name || "User"}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <UserSettings />
+            </DialogContent>
+          </Dialog>
+          <Button variant="ghost" size="icon" onClick={onSignOut}>
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
       
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-2 py-2">
+      <Button 
+        variant="outline" 
+        className="w-full mb-4"
+        onClick={onNewChat}
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        New Chat
+      </Button>
+      
+      <ScrollArea className="h-[calc(100vh-8rem)]">
+        <div className="space-y-2">
           {chats.map((chat) => (
-            <motion.div
+            <div
               key={chat.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-purple-100 dark:hover:bg-purple-800 ${
-                chat.id === currentChatId ? 'bg-purple-200 dark:bg-purple-700' : ''
+              className={`p-2 rounded hover:bg-secondary cursor-pointer transition-colors flex justify-between items-center ${
+                currentChatId === chat.id ? 'bg-secondary' : ''
               }`}
             >
-              <button
+              <div 
+                className="flex items-center flex-1 min-w-0"
                 onClick={() => onChatSelect(chat.id)}
-                className="flex-1 text-left truncate"
               >
-                {chat.title}
-              </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onDeleteChat(chat.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </motion.div>
+                <MessageSquare className="shrink-0 w-4 h-4 mr-2" />
+                <span className="text-sm truncate">
+                  {chat.title}
+                </span>
+              </div>
+              {onDeleteChat && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteChat(chat.id);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           ))}
         </div>
       </ScrollArea>
-
-      <div className="p-4 mt-auto">
-        <Button 
-          onClick={onSignOut} 
-          variant="outline" 
-          className="w-full text-red-600 hover:text-red-700"
-        >
-          <LogOut className="mr-2 h-4 w-4" /> Sign Out
-        </Button>
-      </div>
     </div>
   );
 };

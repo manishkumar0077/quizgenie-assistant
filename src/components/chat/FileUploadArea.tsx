@@ -23,16 +23,13 @@ export const FileUploadArea = ({
     disabled: isProcessing
   });
 
+  const dropzoneProps = getRootProps();
+  const { ref, ...dropzonePropsWithoutRef } = dropzoneProps;
+
   return (
     <motion.div
-      {...getRootProps({
-        onClick: (e) => {
-          if (isProcessing) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }
-      })}
+      {...dropzonePropsWithoutRef}
+      ref={ref as any}
       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer bg-white/30 backdrop-blur-sm ${
         isDragActive ? 'border-primary bg-primary/10' : 'hover:bg-white/40'
       } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
